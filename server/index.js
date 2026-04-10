@@ -10,6 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { query, queryOne, exec, USE_PG } from './db.js';
+import Anthropic from '@anthropic-ai/sdk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -212,6 +213,63 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
   const newName = `${uuidv4()}${ext}`;
   fs.renameSync(req.file.path, path.join(UPLOADS_DIR, newName));
   res.json({ file_url: `/uploads/${newName}` });
+});
+
+// --- Label Analysis with Claude Vision ---
+app.post('/api/analyze-label', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada' });
+
+  try {
+    const imageBuffer = fs.readFileSync(req.file.path);
+    const base64Image = imageBuffer.toString('base64');
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const mediaType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+
+    const client = new Anthropic({ apiKey });
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: base64Image },
+          },
+          {
+            type: 'text',
+            text: `Analiza esta etiqueta de prenda de ropa/indumentaria deportiva y extrae los siguientes datos. Responde SOLO con un JSON válido, sin texto adicional ni markdown:
+
+{
+  "name": "nombre del producto (ej: BOCA H JSY AU)",
+  "brand": "marca (ej: Adidas, Nike)",
+  "model_code": "código de modelo/artículo (ej: IU1244, HT3695)",
+  "category": "categoría: Remeras, Shorts, Buzos, Camperas, Pantalones, Medias, u otra",
+  "size": "talle (ej: S, M, L, XL, XXL)",
+  "color": "código o nombre de color que figure en la etiqueta"
+}
+
+Si algún dato no es legible o no aparece, dejá el campo como string vacío "". El name debe ser descriptivo y corto.`
+          }
+        ]
+      }]
+    });
+
+    // Clean up temp file
+    fs.unlinkSync(req.file.path);
+
+    const text = message.content[0].text.trim();
+    const parsed = JSON.parse(text);
+    res.json(parsed);
+  } catch (err) {
+    // Clean up temp file on error
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    console.error('Label analysis error:', err);
+    res.status(500).json({ error: 'Error al analizar la etiqueta: ' + err.message });
+  }
 });
 
 // --- Entity CRUD ---

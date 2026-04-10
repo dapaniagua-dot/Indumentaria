@@ -8,6 +8,8 @@
     "seed": "node seed.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.87.0",
+    "base44-app": "file:..",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.7.0",
     "cors": "^2.8.5",

@@ -12,6 +12,7 @@ import Consulta from './pages/Consulta';
 import Entregas from './pages/Entregas';
 import Login from './pages/Login';
 import Users from './pages/Users';
+import CargaProducto from './pages/CargaProducto';
 
 const AdminRoute = ({ children }) => {
   const { user } = useAuth();
@@ -43,6 +44,7 @@ const AuthenticatedApp = () => {
         <Route path="/consulta" element={<Consulta />} />
         <Route path="/entregas" element={<AdminRoute><Entregas /></AdminRoute>} />
         <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
+        <Route path="/carga" element={<AdminRoute><CargaProducto /></AdminRoute>} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
