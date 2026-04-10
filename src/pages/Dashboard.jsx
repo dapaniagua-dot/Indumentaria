@@ -29,9 +29,9 @@ export default function Dashboard() {
   const stats = [
     { label: "Total Productos", value: totalProducts, icon: Package, color: "bg-blue-500/20 text-blue-400" },
     { label: "Unidades en Stock", value: totalStock.toLocaleString(), icon: Package, color: "bg-yellow-500/20 text-yellow-400" },
-    { label: "Remeras", value: remeras, imgIcon: "https://media.base44.com/images/public/69d466d17a10f9a16fa574ce/559a103da_remera.png", color: "bg-blue-500/20" },
-    { label: "Shorts", value: shorts, imgIcon: "https://media.base44.com/images/public/69d466d17a10f9a16fa574ce/52c129463_short.png", color: "bg-yellow-500/20" },
-    { label: "Buzos", value: buzos, imgIcon: "https://media.base44.com/images/public/69d466d17a10f9a16fa574ce/487a484f1_buzo.png", color: "bg-blue-500/20" },
+    { label: "Remeras", value: remeras, imgIcon: "/images/559a103da_remera.png", color: "bg-blue-500/20" },
+    { label: "Shorts", value: shorts, imgIcon: "/images/52c129463_short.png", color: "bg-yellow-500/20" },
+    { label: "Buzos", value: buzos, imgIcon: "/images/487a484f1_buzo.png", color: "bg-blue-500/20" },
   ];
 
   return (

@@ -109,6 +109,7 @@ app.use('/api/auth/login', authLimiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/images', express.static(path.join(__dirname, '..', 'public', 'images')));
 
 if (NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '..', 'dist')));
