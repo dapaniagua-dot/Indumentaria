@@ -1,5 +1,5 @@
 import { Link, useLocation, Outlet } from "react-router-dom";
-import { LayoutDashboard, Package, History, Menu, X, Search, Layers, Truck, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, History, Menu, X, Search, Layers, Truck, LogOut, Users } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
@@ -8,8 +8,9 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Panel de Información" },
   { to: "/products", icon: Package, label: "Productos" },
   { to: "/entregas", icon: Truck, label: "Entregas", adminOnly: true },
-  { to: "/movements", icon: History, label: "Movimientos", adminOnly: true },
+  { to: "/movements", icon: History, label: "Movimientos" },
   { to: "/consulta", icon: Search, label: "Consulta" },
+  { to: "/users", icon: Users, label: "Usuarios", adminOnly: true },
 ];
 
 export default function Layout() {

@@ -11,6 +11,13 @@ import Movements from './pages/Movements';
 import Consulta from './pages/Consulta';
 import Entregas from './pages/Entregas';
 import Login from './pages/Login';
+import Users from './pages/Users';
+
+const AdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (user?.role !== 'admin') return <PageNotFound />;
+  return children;
+};
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isAuthenticated, needsSetup, login } = useAuth();
@@ -34,7 +41,8 @@ const AuthenticatedApp = () => {
         <Route path="/products" element={<Products />} />
         <Route path="/movements" element={<Movements />} />
         <Route path="/consulta" element={<Consulta />} />
-        <Route path="/entregas" element={<Entregas />} />
+        <Route path="/entregas" element={<AdminRoute><Entregas /></AdminRoute>} />
+        <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
