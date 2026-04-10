@@ -44,6 +44,15 @@ export default function CargaProducto() {
     setError("");
 
     try {
+      // Check if SKU already exists
+      const existing = await base44.entities.Product.list("-created_date", 500);
+      const duplicate = existing.find(p => p.sku === sku.trim());
+      if (duplicate) {
+        setError(`El SKU ${sku} ya existe: "${duplicate.name}" (${duplicate.size} / ${duplicate.color}). Revisalo en la seccion de Productos.`);
+        setAnalyzing(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", labelFile);
       const res = await fetch("/api/analyze-label", {
