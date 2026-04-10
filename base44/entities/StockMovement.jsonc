@@ -1,0 +1,48 @@
+{
+  "name": "StockMovement",
+  "type": "object",
+  "properties": {
+    "product_id": {
+      "type": "string",
+      "title": "Producto ID"
+    },
+    "product_name": {
+      "type": "string",
+      "title": "Producto"
+    },
+    "product_sku": {
+      "type": "string",
+      "title": "SKU"
+    },
+    "type": {
+      "type": "string",
+      "title": "Tipo",
+      "enum": [
+        "entrada",
+        "salida",
+        "ajuste"
+      ]
+    },
+    "quantity": {
+      "type": "number",
+      "title": "Cantidad"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notas"
+    },
+    "reference": {
+      "type": "string",
+      "title": "Referencia"
+    },
+    "user_email": {
+      "type": "string",
+      "title": "Usuario"
+    }
+  },
+  "required": [
+    "product_id",
+    "type",
+    "quantity"
+  ]
+}

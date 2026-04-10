@@ -1,0 +1,71 @@
+{
+  "name": "Entrega",
+  "type": "object",
+  "properties": {
+    "fecha_hora": {
+      "type": "string",
+      "title": "Fecha y Hora"
+    },
+    "receptor_nombre": {
+      "type": "string",
+      "title": "Nombre"
+    },
+    "receptor_apellido": {
+      "type": "string",
+      "title": "Apellido"
+    },
+    "receptor_dni": {
+      "type": "string",
+      "title": "DNI"
+    },
+    "sector": {
+      "type": "string",
+      "title": "Sector"
+    },
+    "prendas": {
+      "type": "array",
+      "title": "Prendas entregadas",
+      "items": {
+        "type": "object"
+      }
+    },
+    "total_prendas": {
+      "type": "number",
+      "title": "Total prendas"
+    },
+    "entregado_por_email": {
+      "type": "string",
+      "title": "Email del responsable"
+    },
+    "entregado_por_nombre": {
+      "type": "string",
+      "title": "Nombre del responsable"
+    }
+  },
+  "required": [
+    "receptor_nombre",
+    "receptor_apellido"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

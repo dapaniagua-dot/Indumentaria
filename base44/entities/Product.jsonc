@@ -1,0 +1,100 @@
+{
+  "name": "Product",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Nombre"
+    },
+    "sku": {
+      "type": "string",
+      "title": "C\u00f3digo / SKU (EAN)"
+    },
+    "model_code": {
+      "type": "string",
+      "title": "C\u00f3digo de Modelo (ej: HT3676)"
+    },
+    "category": {
+      "type": "string",
+      "title": "Categor\u00eda",
+      "enum": [
+        "Remeras",
+        "Pantalones",
+        "Shorts",
+        "Camperas",
+        "Buzos",
+        "Medias",
+        "Calzado",
+        "Accesorios"
+      ]
+    },
+    "brand": {
+      "type": "string",
+      "title": "Marca"
+    },
+    "size": {
+      "type": "string",
+      "title": "Talle",
+      "enum": [
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL",
+        "XXXL",
+        "\u00danico",
+        "35",
+        "36",
+        "37",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45"
+      ]
+    },
+    "color": {
+      "type": "string",
+      "title": "Color"
+    },
+    "price": {
+      "type": "number",
+      "title": "Precio"
+    },
+    "cost": {
+      "type": "number",
+      "title": "Costo"
+    },
+    "stock": {
+      "type": "number",
+      "title": "Stock actual",
+      "default": 0
+    },
+    "min_stock": {
+      "type": "number",
+      "title": "Stock m\u00ednimo",
+      "default": 5
+    },
+    "description": {
+      "type": "string",
+      "title": "Descripci\u00f3n"
+    },
+    "image_url": {
+      "type": "string",
+      "title": "Imagen"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Activo",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "sku"
+  ]
+}
