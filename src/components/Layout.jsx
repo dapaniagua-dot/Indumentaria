@@ -38,14 +38,14 @@ export default function Layout() {
             </div>
             <div>
               <p className="font-cabj text-primary text-sm leading-tight tracking-wide">CONTROL DE STOCK</p>
-              <p className="text-white/30 text-[10px] font-industry tracking-widest uppercase">Indumentaria</p>
+              <p className="text-white/60 text-[10px] font-industry tracking-widest uppercase">Indumentaria</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <p className="px-4 pb-2 text-[10px] font-industry font-semibold text-white/20 uppercase tracking-[0.15em]">Menu</p>
+          <p className="px-4 pb-2 text-[10px] font-industry font-semibold text-white/45 uppercase tracking-[0.15em]">Menu</p>
           {visibleNav.map(({ to, icon: Icon, label }) => {
             const active = location.pathname === to;
             return (
@@ -57,7 +57,7 @@ export default function Layout() {
                   "flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-industry font-medium transition-all",
                   active
                     ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                    : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                    : "text-white/60 hover:text-white/90 hover:bg-white/[0.04]"
                 )}
               >
                 <Icon className="w-[18px] h-[18px] flex-shrink-0" />
@@ -77,14 +77,14 @@ export default function Layout() {
                 </span>
               </div>
               <div className="min-w-0">
-                <p className="text-white/60 text-xs font-industry truncate">{user.full_name || user.email}</p>
-                <p className="text-white/25 text-[10px] font-industry uppercase tracking-wider">{user.role}</p>
+                <p className="text-white/80 text-xs font-industry truncate">{user.full_name || user.email}</p>
+                <p className="text-white/50 text-[10px] font-industry uppercase tracking-wider">{user.role}</p>
               </div>
             </div>
           )}
           <button
             onClick={logout}
-            className="flex items-center gap-2 text-white/25 hover:text-white/60 text-xs font-industry transition-colors"
+            className="flex items-center gap-2 text-white/45 hover:text-white/70 text-xs font-industry transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" /> Cerrar sesion
           </button>

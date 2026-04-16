@@ -70,7 +70,7 @@ export default function Products() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-cabj text-gold-gradient tracking-wide">Productos</h1>
-          <p className="text-muted-foreground text-sm font-industry mt-1">{products.length} productos registrados</p>
+          <p className="text-white/70 text-sm font-industry mt-1">{products.length} productos registrados</p>
         </div>
         {isAdmin && (
           <Button onClick={() => { setEditProduct(null); setShowForm(true); }} className="gap-2 font-industry font-semibold text-xs uppercase tracking-wider">
@@ -143,14 +143,14 @@ export default function Products() {
                           </div>
                           <div>
                             <p className="text-sm font-industry font-semibold text-white">{p.name}</p>
-                            <p className="text-xs font-industry text-white/40">{p.brand} &middot; {p.category}</p>
+                            <p className="text-xs font-industry text-white/60">{p.brand} &middot; {p.category}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-4">
                         <span className="text-xs font-mono bg-secondary/80 px-2 py-1 rounded-lg text-secondary-foreground">{p.sku}</span>
                       </td>
-                      <td className="px-5 py-4 text-sm font-industry text-white/60">{p.size} / {p.color}</td>
+                      <td className="px-5 py-4 text-sm font-industry text-white/75">{p.size} / {p.color}</td>
                       <td className="px-5 py-4"><span className="text-xs font-mono bg-secondary/80 px-2 py-1 rounded-lg text-secondary-foreground">{p.model_code || '\u2014'}</span></td>
                       <td className="px-5 py-4 text-center">
                         <span className={cn("inline-flex items-center gap-1 text-sm font-industry font-bold px-3 py-1 rounded-full",
