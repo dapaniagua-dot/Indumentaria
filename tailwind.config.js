@@ -5,7 +5,8 @@ module.exports = {
   theme: {
   	extend: {
       fontFamily: {
-        inter: ['var(--font-inter)']
+        industry: ['Industry', 'sans-serif'],
+        cabj: ['CABJ1905', 'Industry', 'sans-serif'],
       },
   		borderRadius: {
   			lg: 'var(--radius)',

@@ -1,11 +1,11 @@
 import { Link, useLocation, Outlet } from "react-router-dom";
-import { LayoutDashboard, Package, History, Menu, X, Search, Layers, Truck, LogOut, Users, PackagePlus } from "lucide-react";
+import { LayoutDashboard, Package, History, Menu, X, Search, Truck, LogOut, Users, PackagePlus } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Panel de Información" },
+  { to: "/", icon: LayoutDashboard, label: "Panel de Informacion" },
   { to: "/products", icon: Package, label: "Productos" },
   { to: "/carga", icon: PackagePlus, label: "Cargar Producto", adminOnly: true },
   { to: "/entregas", icon: Truck, label: "Entregas", adminOnly: true },
@@ -19,9 +19,7 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const visibleNav = navItems.filter(item => {
-    return isAdmin || !item.adminOnly;
-  });
+  const visibleNav = navItems.filter(item => isAdmin || !item.adminOnly);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -29,20 +27,24 @@ export default function Layout() {
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0",
         mobileOpen ? "translate-x-0" : "-translate-x-full"
-      )} style={{ background: "hsl(222 47% 11%)" }}>
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <Layers className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-white font-bold text-xs leading-tight">CONTROL DE STOCK</p>
-            <p className="text-white/70 text-xs">INDUMENTARIA DISCONTINUADA</p>
+      )} style={{ background: "hsl(222 70% 8%)" }}>
+
+        {/* Brand Header */}
+        <div className="px-5 py-5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center flex-shrink-0 gold-border-glow">
+              <span className="font-cabj text-sm text-primary-foreground font-bold">CABJ</span>
+            </div>
+            <div>
+              <p className="font-cabj text-primary text-sm leading-tight tracking-wide">CONTROL DE STOCK</p>
+              <p className="text-white/30 text-[10px] font-industry tracking-widest uppercase">Indumentaria</p>
+            </div>
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          <p className="px-4 pb-2 text-[10px] font-industry font-semibold text-white/20 uppercase tracking-[0.15em]">Menu</p>
           {visibleNav.map(({ to, icon: Icon, label }) => {
             const active = location.pathname === to;
             return (
@@ -51,47 +53,61 @@ export default function Layout() {
                 to={to}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                  "flex items-center gap-3 px-4 py-2.5 rounded-xl text-[13px] font-industry font-medium transition-all",
                   active
-                    ? "bg-primary text-white shadow-lg shadow-primary/30"
-                    : "text-white/50 hover:text-white hover:bg-white/8"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                    : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
                 )}
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
+                <Icon className="w-[18px] h-[18px] flex-shrink-0" />
                 {label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="px-6 py-4 border-t border-white/10 space-y-3">
+        {/* User footer */}
+        <div className="px-5 py-4 border-t border-white/[0.06]">
           {user && (
-            <div className="text-white/40 text-xs truncate">
-              {user.full_name || user.email}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                <span className="text-xs font-industry font-bold text-primary">
+                  {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-white/60 text-xs font-industry truncate">{user.full_name || user.email}</p>
+                <p className="text-white/25 text-[10px] font-industry uppercase tracking-wider">{user.role}</p>
+              </div>
             </div>
           )}
           <button
             onClick={logout}
-            className="flex items-center gap-2 text-white/40 hover:text-white text-xs transition-colors"
+            className="flex items-center gap-2 text-white/25 hover:text-white/60 text-xs font-industry transition-colors"
           >
-            <LogOut className="w-3.5 h-3.5" /> Cerrar sesión
+            <LogOut className="w-3.5 h-3.5" /> Cerrar sesion
           </button>
         </div>
       </aside>
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center gap-4 px-4 py-4 bg-card border-b border-border">
-          <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-muted">
-            <Menu className="w-5 h-5" />
+        <header className="lg:hidden flex items-center gap-4 px-4 py-3 bg-card border-b border-border">
+          <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-muted transition-colors">
+            <Menu className="w-5 h-5 text-foreground" />
           </button>
-          <span className="font-bold text-xs">CONTROL DE STOCK INDUMENTARIA DISCONTINUADA</span>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center">
+              <span className="font-cabj text-[8px] text-primary-foreground font-bold">CABJ</span>
+            </div>
+            <span className="font-cabj text-primary text-xs tracking-wide">CONTROL DE STOCK</span>
+          </div>
         </header>
 
         <main className="flex-1 overflow-auto">

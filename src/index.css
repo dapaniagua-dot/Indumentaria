@@ -1,4 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* === Fuentes Boca Juniors === */
+@font-face {
+  font-family: 'CABJ1905';
+  src: url('/fonts/CABJ1905-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Industry';
+  src: url('/fonts/Industry-Book.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Industry';
+  src: url('/fonts/Industry-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Industry';
+  src: url('/fonts/Industry-Demi.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Industry';
+  src: url('/fonts/Industry-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -6,30 +45,37 @@
 
 @layer base {
   :root {
-    --background: 222 60% 14%;
-    --foreground: 45 93% 58%;
-    --card: 222 55% 18%;
-    --card-foreground: 45 93% 58%;
-    --popover: 222 55% 18%;
-    --popover-foreground: 45 93% 58%;
-    --primary: 45 93% 52%;
-    --primary-foreground: 222 60% 14%;
-    --secondary: 222 50% 25%;
-    --secondary-foreground: 45 93% 58%;
-    --muted: 222 50% 22%;
-    --muted-foreground: 45 50% 60%;
+    /* Boca Juniors - Azul profundo y Dorado */
+    --background: 222 65% 11%;
+    --foreground: 46 100% 65%;
+    --card: 222 55% 15%;
+    --card-foreground: 46 100% 65%;
+    --popover: 222 55% 15%;
+    --popover-foreground: 46 100% 65%;
+    --primary: 46 100% 50%;
+    --primary-foreground: 222 65% 11%;
+    --secondary: 222 50% 22%;
+    --secondary-foreground: 46 80% 70%;
+    --muted: 222 45% 18%;
+    --muted-foreground: 220 15% 55%;
     --accent: 222 50% 25%;
-    --accent-foreground: 45 93% 58%;
+    --accent-foreground: 46 100% 65%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 222 40% 28%;
-    --input: 222 40% 28%;
-    --ring: 45 93% 52%;
+    --border: 222 35% 22%;
+    --input: 222 35% 22%;
+    --ring: 46 100% 50%;
     --radius: 0.75rem;
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
-    --sidebar-bg: 222 70% 10%;
-    --font-inter: 'Inter', sans-serif;
+    --sidebar-bg: 222 70% 8%;
+
+    /* Boca brand specific */
+    --boca-blue: 222 65% 11%;
+    --boca-blue-light: 222 55% 20%;
+    --boca-gold: 46 100% 50%;
+    --boca-gold-dim: 46 60% 40%;
+    --boca-gold-bright: 46 100% 65%;
   }
 }
 
@@ -38,12 +84,32 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-inter;
+    @apply bg-background text-foreground;
+    font-family: 'Industry', sans-serif;
+  }
+  h1, h2, h3, .font-cabj {
+    font-family: 'CABJ1905', 'Industry', sans-serif;
+    letter-spacing: 0.03em;
   }
 }
 
 @layer utilities {
-  .font-inter {
-    font-family: var(--font-inter);
+  .font-industry {
+    font-family: 'Industry', sans-serif;
+  }
+  .font-cabj {
+    font-family: 'CABJ1905', 'Industry', sans-serif;
+  }
+  .text-gold-gradient {
+    background: linear-gradient(135deg, hsl(46 100% 50%), hsl(46 100% 70%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .boca-card-glow {
+    box-shadow: 0 0 0 1px hsl(222 35% 22%), 0 4px 24px -4px hsl(46 100% 50% / 0.08);
+  }
+  .gold-border-glow {
+    box-shadow: 0 0 12px -2px hsl(46 100% 50% / 0.25);
   }
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Layers, LogIn, UserPlus } from "lucide-react";
+import { LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,6 @@ export default function Login({ onLogin, needsSetup }) {
 
     try {
       if (isSetup) {
-        // Register first admin
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -29,10 +28,8 @@ export default function Login({ onLogin, needsSetup }) {
         if (!res.ok) { setError(data.error); setLoading(false); return; }
         setIsSetup(false);
         setError("");
-        // After setup, login automatically
       }
 
-      // Login
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,35 +47,44 @@ export default function Login({ onLogin, needsSetup }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Background pattern */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: `repeating-linear-gradient(45deg, hsl(46 100% 50%) 0, hsl(46 100% 50%) 1px, transparent 0, transparent 50%)`,
+        backgroundSize: '48px 48px'
+      }} />
+
+      <div className="w-full max-w-sm relative z-10">
+        {/* Logo / Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-4">
-            <Layers className="w-7 h-7 text-white" />
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center mb-5 gold-border-glow">
+            <span className="font-cabj text-3xl text-primary-foreground font-bold tracking-tight">CABJ</span>
           </div>
-          <h1 className="text-xl font-bold text-foreground">Control de Stock</h1>
-          <p className="text-muted-foreground text-sm">Indumentaria Discontinuada</p>
+          <h1 className="text-2xl font-cabj text-gold-gradient tracking-wider">CONTROL DE STOCK</h1>
+          <p className="text-muted-foreground text-sm font-industry mt-1 tracking-wide">INDUMENTARIA DISCONTINUADA</p>
         </div>
 
-        <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-4">
-            {isSetup ? "Crear cuenta de administrador" : "Iniciar sesión"}
+        {/* Login Card */}
+        <div className="bg-card rounded-2xl border border-border shadow-lg boca-card-glow p-7">
+          <h2 className="text-lg font-industry font-semibold mb-5 text-foreground">
+            {isSetup ? "Crear cuenta de administrador" : "Iniciar sesion"}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSetup && (
-              <div className="space-y-1">
-                <Label>Nombre completo</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-industry uppercase tracking-wider text-muted-foreground">Nombre completo</Label>
                 <Input
                   value={form.full_name}
                   onChange={e => set("full_name", e.target.value)}
                   placeholder="Ej: Diego Paniagua"
                   required
+                  className="h-11"
                 />
               </div>
             )}
-            <div className="space-y-1">
-              <Label>Email</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-industry uppercase tracking-wider text-muted-foreground">Email</Label>
               <Input
                 type="email"
                 value={form.email}
@@ -86,38 +92,45 @@ export default function Login({ onLogin, needsSetup }) {
                 placeholder="email@ejemplo.com"
                 required
                 autoComplete="email"
+                className="h-11"
               />
             </div>
-            <div className="space-y-1">
-              <Label>Contraseña</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-industry uppercase tracking-wider text-muted-foreground">Contrasena</Label>
               <Input
                 type="password"
                 value={form.password}
                 onChange={e => set("password", e.target.value)}
-                placeholder={isSetup ? "Mínimo 6 caracteres" : "Tu contraseña"}
+                placeholder={isSetup ? "Minimo 6 caracteres" : "Tu contrasena"}
                 required
                 minLength={isSetup ? 6 : 1}
                 autoComplete={isSetup ? "new-password" : "current-password"}
+                className="h-11"
               />
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-xl">
+                <p className="text-sm text-destructive">{error}</p>
               </div>
             )}
 
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
+            <Button type="submit" className="w-full gap-2 h-11 font-industry font-semibold text-sm uppercase tracking-wider" disabled={loading}>
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : isSetup ? (
                 <><UserPlus className="w-4 h-4" /> Crear cuenta y entrar</>
               ) : (
-                <><LogIn className="w-4 h-4" /> Iniciar sesión</>
+                <><LogIn className="w-4 h-4" /> Iniciar sesion</>
               )}
             </Button>
           </form>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-muted-foreground/40 text-xs mt-6 font-industry">
+          Club Atletico Boca Juniors &middot; Departamento de Indumentaria
+        </p>
       </div>
     </div>
   );
