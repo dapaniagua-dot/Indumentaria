@@ -1,12 +1,18 @@
-export default function AdidasLogo({ className = "w-6 h-6", color = "currentColor" }) {
+export default function AdidasLogo({ size = 40 }) {
+  const r = size * 0.22;
   return (
-    <svg viewBox="0 0 80 80" fill={color} className={className} xmlns="http://www.w3.org/2000/svg">
-      {/* Three stripes - Adidas Performance logo */}
-      <polygon points="40,10 54,40 26,40" />
-      <polygon points="24,20 38,50 10,50" />
-      <polygon points="56,20 70,50 42,50" />
-      {/* Base bar */}
-      <rect x="6" y="54" width="68" height="6" rx="1" />
+    <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      {/* Fondo azul Boca */}
+      <rect width="100" height="100" rx={r} fill="#0D1B3E" />
+      {/* 3 barras doradas - fiel al logo Adidas Performance */}
+      <g transform="translate(14, 18) scale(0.72)">
+        {/* Barra izquierda (corta) */}
+        <path d="M10,95 L10,68 L30,55 L30,95 Z" fill="#E6A817" />
+        {/* Barra central (media) */}
+        <path d="M35,95 L35,42 L55,29 L55,95 Z" fill="#E6A817" />
+        {/* Barra derecha (alta) */}
+        <path d="M60,95 L60,16 L80,3 L80,95 Z" fill="#E6A817" />
+      </g>
     </svg>
   );
 }

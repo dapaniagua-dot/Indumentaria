@@ -33,9 +33,7 @@ export default function Layout() {
         {/* Brand Header */}
         <div className="px-5 py-5 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center flex-shrink-0 gold-border-glow">
-              <AdidasLogo className="w-6 h-6" color="hsl(222 65% 11%)" />
-            </div>
+            <AdidasLogo size={40} />
             <div>
               <p className="font-cabj text-primary text-sm leading-tight tracking-wide">CONTROL DE STOCK</p>
               <p className="text-white/60 text-[10px] font-industry tracking-widest uppercase">Indumentaria</p>
@@ -104,9 +102,7 @@ export default function Layout() {
             <Menu className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center">
-              <AdidasLogo className="w-4 h-4" color="hsl(222 65% 11%)" />
-            </div>
+            <AdidasLogo size={28} />
             <span className="font-cabj text-primary text-xs tracking-wide">CONTROL DE STOCK</span>
           </div>
         </header>
