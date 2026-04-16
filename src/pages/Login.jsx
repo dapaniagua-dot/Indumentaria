@@ -3,6 +3,7 @@ import { LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AdidasLogo from "@/components/AdidasLogo";
 
 export default function Login({ onLogin, needsSetup }) {
   const [isSetup, setIsSetup] = useState(needsSetup);
@@ -58,7 +59,7 @@ export default function Login({ onLogin, needsSetup }) {
         {/* Logo / Brand */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center mb-5 gold-border-glow">
-            <span className="font-cabj text-3xl text-primary-foreground font-bold tracking-tight">CABJ</span>
+            <AdidasLogo className="w-12 h-12" color="hsl(222 65% 11%)" />
           </div>
           <h1 className="text-2xl font-cabj text-gold-gradient tracking-wider">CONTROL DE STOCK</h1>
           <p className="text-muted-foreground text-sm font-industry mt-1 tracking-wide">INDUMENTARIA DISCONTINUADA</p>

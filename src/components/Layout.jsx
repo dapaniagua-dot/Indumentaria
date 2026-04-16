@@ -3,6 +3,7 @@ import { LayoutDashboard, Package, History, Menu, X, Search, Truck, LogOut, User
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
+import AdidasLogo from "./AdidasLogo";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Panel de Informacion" },
@@ -33,7 +34,7 @@ export default function Layout() {
         <div className="px-5 py-5 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center flex-shrink-0 gold-border-glow">
-              <span className="font-cabj text-sm text-primary-foreground font-bold">CABJ</span>
+              <AdidasLogo className="w-6 h-6" color="hsl(222 65% 11%)" />
             </div>
             <div>
               <p className="font-cabj text-primary text-sm leading-tight tracking-wide">CONTROL DE STOCK</p>
@@ -104,7 +105,7 @@ export default function Layout() {
           </button>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center">
-              <span className="font-cabj text-[8px] text-primary-foreground font-bold">CABJ</span>
+              <AdidasLogo className="w-4 h-4" color="hsl(222 65% 11%)" />
             </div>
             <span className="font-cabj text-primary text-xs tracking-wide">CONTROL DE STOCK</span>
           </div>
