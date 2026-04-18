@@ -95,7 +95,7 @@
 
 @layer utilities {
   .font-industry {
-    font-family: 'Industry', sans-serif;
+    font-family: 'Industry', sans-serif !important;
   }
   .font-cabj {
     font-family: 'CABJ1905', 'Industry', sans-serif;

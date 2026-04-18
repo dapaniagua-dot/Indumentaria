@@ -60,7 +60,7 @@ export default function Dashboard() {
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center mb-4`}>
                 <Icon className={`w-6 h-6 ${iconColor}`} />
               </div>
-              <p className="text-3xl font-cabj text-foreground tracking-wide">{value}</p>
+              <p className="text-3xl text-foreground tracking-wide" style={{fontFamily: 'Industry', fontWeight: 700}}>{value}</p>
               <p className="text-muted-foreground text-xs font-industry mt-1 uppercase tracking-wider">{label}</p>
             </div>
           </button>
@@ -79,7 +79,7 @@ export default function Dashboard() {
                 <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center mb-4">
                   <img src={imgIcon} alt={label} className="w-10 h-10 object-contain" />
                 </div>
-                <p className="text-2xl font-cabj text-foreground tracking-wide">{value}</p>
+                <p className="text-2xl text-foreground tracking-wide" style={{fontFamily: 'Industry', fontWeight: 700}}>{value}</p>
                 <p className="text-muted-foreground text-xs font-industry mt-1 uppercase tracking-wider">{label}</p>
               </div>
             </button>
