@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import speakeasy from 'speakeasy';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
@@ -56,6 +57,8 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
       CREATE INDEX IF NOT EXISTS idx_movements_created ON stock_movements(created_date);
     `);
+    await exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT DEFAULT NULL`);
+    await exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false`);
   } else {
     await exec(`
       CREATE TABLE IF NOT EXISTS users (
@@ -86,6 +89,8 @@ async function initDB() {
         created_date TEXT DEFAULT (datetime('now')), updated_date TEXT DEFAULT (datetime('now')), created_by TEXT DEFAULT ''
       );
     `);
+    try { await exec(`ALTER TABLE users ADD COLUMN totp_secret TEXT DEFAULT NULL`); } catch {}
+    try { await exec(`ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0`); } catch {}
   }
   console.log(`Database ready [${USE_PG ? 'PostgreSQL' : 'SQLite'}]`);
 }
@@ -141,6 +146,12 @@ app.post('/api/auth/login', async (req, res) => {
   const user = await queryOne('SELECT * FROM users WHERE email = ? AND active = ?', [email.toLowerCase().trim(), USE_PG ? true : 1]);
   if (!user || !await bcrypt.compare(password, user.password_hash)) {
     return res.status(401).json({ error: 'Credenciales inválidas' });
+  }
+
+  const totpEnabled = USE_PG ? user.totp_enabled : !!user.totp_enabled;
+  if (totpEnabled) {
+    const tempToken = jwt.sign({ id: user.id, pending2FA: true }, JWT_SECRET, { expiresIn: '5m' });
+    return res.json({ requires2FA: true, tempToken });
   }
 
   const token = jwt.sign(
@@ -411,6 +422,58 @@ app.delete('/api/entities/:entity/:id', authenticateToken, requireAdmin, async (
   const config = ENTITY_CONFIG[req.params.entity];
   if (!config) return res.status(404).json({ error: 'Entidad desconocida' });
   await query(`DELETE FROM ${config.table} WHERE id = ?`, [req.params.id]);
+  res.json({ ok: true });
+});
+
+// --- 2FA Routes ---
+app.get('/api/auth/2fa/status', authenticateToken, async (req, res) => {
+  const user = await queryOne('SELECT totp_enabled FROM users WHERE id = ?', [req.user.id]);
+  res.json({ enabled: USE_PG ? !!user.totp_enabled : !!user.totp_enabled });
+});
+
+app.post('/api/auth/2fa/setup', authenticateToken, async (req, res) => {
+  const secret = speakeasy.generateSecret({ name: `Control de Stock (${req.user.email})`, length: 20 });
+  await query('UPDATE users SET totp_secret = ? WHERE id = ?', [secret.base32, req.user.id]);
+  res.json({ secret: secret.base32, otpauth_url: secret.otpauth_url });
+});
+
+app.post('/api/auth/2fa/enable', authenticateToken, async (req, res) => {
+  const { code } = req.body;
+  const user = await queryOne('SELECT totp_secret FROM users WHERE id = ?', [req.user.id]);
+  if (!user?.totp_secret) return res.status(400).json({ error: 'Primero iniciá la configuración' });
+  const verified = speakeasy.totp.verify({ secret: user.totp_secret, encoding: 'base32', token: code, window: 1 });
+  if (!verified) return res.status(400).json({ error: 'Código incorrecto' });
+  await query('UPDATE users SET totp_enabled = ? WHERE id = ?', [USE_PG ? true : 1, req.user.id]);
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/2fa/verify', async (req, res) => {
+  const { tempToken, code } = req.body;
+  if (!tempToken || !code) return res.status(400).json({ error: 'Datos requeridos' });
+  try {
+    const decoded = jwt.verify(tempToken, JWT_SECRET);
+    if (!decoded.pending2FA) return res.status(400).json({ error: 'Token inválido' });
+    const user = await queryOne('SELECT * FROM users WHERE id = ? AND active = ?', [decoded.id, USE_PG ? true : 1]);
+    if (!user) return res.status(401).json({ error: 'Usuario no encontrado' });
+    const verified = speakeasy.totp.verify({ secret: user.totp_secret, encoding: 'base32', token: code, window: 1 });
+    if (!verified) return res.status(401).json({ error: 'Código incorrecto' });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
+      JWT_SECRET, { expiresIn: '7d' }
+    );
+    res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role } });
+  } catch {
+    return res.status(401).json({ error: 'Token expirado o inválido' });
+  }
+});
+
+app.post('/api/auth/2fa/disable', authenticateToken, async (req, res) => {
+  const { code } = req.body;
+  const user = await queryOne('SELECT totp_secret FROM users WHERE id = ?', [req.user.id]);
+  if (!user?.totp_secret) return res.status(400).json({ error: '2FA no está configurado' });
+  const verified = speakeasy.totp.verify({ secret: user.totp_secret, encoding: 'base32', token: code, window: 1 });
+  if (!verified) return res.status(400).json({ error: 'Código incorrecto' });
+  await query('UPDATE users SET totp_enabled = ?, totp_secret = ? WHERE id = ?', [USE_PG ? false : 0, null, req.user.id]);
   res.json({ ok: true });
 });
 

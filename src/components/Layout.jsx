@@ -1,9 +1,10 @@
 import { Link, useLocation, Outlet } from "react-router-dom";
-import { LayoutDashboard, Package, History, Menu, X, Search, Truck, LogOut, Users, PackagePlus } from "lucide-react";
+import { LayoutDashboard, Package, History, Menu, X, Search, Truck, LogOut, Users, PackagePlus, Shield } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 import AdidasLogo from "./AdidasLogo";
+import TwoFactorModal from "./TwoFactorModal";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Panel de Informacion" },
@@ -18,6 +19,7 @@ const navItems = [
 export default function Layout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
   const visibleNav = navItems.filter(item => isAdmin || !item.adminOnly);
@@ -80,14 +82,25 @@ export default function Layout() {
               </div>
             </div>
           )}
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 text-white/45 hover:text-white/70 text-xs font-industry transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Cerrar sesion
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShow2FA(true)}
+              className="flex items-center gap-2 text-white/45 hover:text-white/70 text-xs font-industry transition-colors"
+            >
+              <Shield className="w-3.5 h-3.5" /> 2FA
+            </button>
+            <span className="text-white/20 text-xs">·</span>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 text-white/45 hover:text-white/70 text-xs font-industry transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Cerrar sesion
+            </button>
+          </div>
         </div>
       </aside>
+
+      {show2FA && <TwoFactorModal onClose={() => setShow2FA(false)} />}
 
       {/* Mobile overlay */}
       {mobileOpen && (
