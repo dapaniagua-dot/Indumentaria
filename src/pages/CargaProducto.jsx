@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
-import { Upload, Camera, Tag, Package, Check, X, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
+import { Upload, Camera, Tag, Package, Check, X, Loader2, AlertTriangle, RotateCcw, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -148,20 +148,26 @@ export default function CargaProducto() {
             <Label className="flex items-center gap-2 text-white font-semibold">
               <Tag className="w-4 h-4 text-primary" /> Etiqueta del producto
             </Label>
-            <label className={cn(
-              "flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all",
-              labelPreview ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-            )}>
-              {labelPreview ? (
+            {labelPreview ? (
+              <label className="flex flex-col items-center justify-center border-2 border-dashed border-primary bg-primary/5 rounded-xl p-6 cursor-pointer transition-all">
                 <img src={labelPreview} alt="Etiqueta" className="max-h-48 object-contain rounded-lg" />
-              ) : (
-                <>
-                  <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Click para subir la etiqueta</p>
-                </>
-              )}
-              <input type="file" accept="image/*" className="hidden" onChange={handleLabelChange} />
-            </label>
+                <p className="text-xs text-muted-foreground mt-2">Click para cambiar</p>
+                <input type="file" accept="image/*" className="hidden" onChange={handleLabelChange} />
+              </label>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-6 cursor-pointer transition-all">
+                  <Camera className="w-8 h-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Cámara</p>
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleLabelChange} />
+                </label>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-6 cursor-pointer transition-all">
+                  <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Galería</p>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLabelChange} />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Photo upload */}
@@ -169,20 +175,26 @@ export default function CargaProducto() {
             <Label className="flex items-center gap-2 text-white font-semibold">
               <Camera className="w-4 h-4 text-primary" /> Foto del producto
             </Label>
-            <label className={cn(
-              "flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all",
-              photoPreview ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-            )}>
-              {photoPreview ? (
+            {photoPreview ? (
+              <label className="flex flex-col items-center justify-center border-2 border-dashed border-primary bg-primary/5 rounded-xl p-6 cursor-pointer transition-all">
                 <img src={photoPreview} alt="Producto" className="max-h-48 object-contain rounded-lg" />
-              ) : (
-                <>
+                <p className="text-xs text-muted-foreground mt-2">Click para cambiar</p>
+                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+              </label>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-6 cursor-pointer transition-all">
                   <Camera className="w-8 h-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Click para subir la foto</p>
-                </>
-              )}
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            </label>
+                  <p className="text-sm text-muted-foreground">Cámara</p>
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoChange} />
+                </label>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-6 cursor-pointer transition-all">
+                  <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Galería</p>
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* SKU & Quantity */}

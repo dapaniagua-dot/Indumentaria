@@ -273,7 +273,10 @@ Si algún dato no es legible o no aparece, dejá el campo como string vacío "".
     fs.unlinkSync(req.file.path);
 
     const text = message.content[0].text.trim();
-    const parsed = JSON.parse(text);
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    const jsonStr = start !== -1 && end !== -1 ? text.slice(start, end + 1) : text;
+    const parsed = JSON.parse(jsonStr);
     res.json(parsed);
   } catch (err) {
     // Clean up temp file on error
