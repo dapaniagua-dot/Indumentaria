@@ -13,6 +13,7 @@ export default function Scanner() {
   const [recentScans, setRecentScans] = useState([]);
   const [qty, setQty] = useState(1);
   const [processing, setProcessing] = useState(false);
+  const [pendingVariant, setPendingVariant] = useState(null); // { product, quantity } when waiting for con/sin pub choice
   const inputRef = useRef(null);
 
   // Keep input focused for scanner
@@ -22,6 +23,40 @@ export default function Scanner() {
     document.addEventListener("click", focus);
     return () => document.removeEventListener("click", focus);
   }, []);
+
+  const applyMovement = async (product, quantity, hasPublicidad) => {
+    const sinPub = product.stock_sin_pub || 0;
+    const conPub = product.stock_con_pub || 0;
+    const delta = mode === "entrada" ? quantity : -quantity;
+
+    let newSinPub = sinPub, newConPub = conPub, newStock = product.stock || 0;
+    if (product.tiene_variante_publicidad) {
+      if (hasPublicidad) newConPub = Math.max(0, conPub + delta);
+      else newSinPub = Math.max(0, sinPub + delta);
+      newStock = newSinPub + newConPub;
+    } else {
+      newStock = Math.max(0, (product.stock || 0) + delta);
+    }
+
+    await base44.entities.Product.update(product.id, {
+      stock: newStock,
+      stock_sin_pub: newSinPub,
+      stock_con_pub: newConPub,
+    });
+    await base44.entities.StockMovement.create({
+      product_id: product.id,
+      product_name: product.name,
+      product_sku: product.sku,
+      type: mode,
+      quantity,
+      notes: product.tiene_variante_publicidad ? `Escáner USB · ${hasPublicidad ? "Con" : "Sin"} publicidad` : `Escáner USB`,
+      has_publicidad: product.tiene_variante_publicidad ? hasPublicidad : null,
+    });
+
+    const result = { success: true, product, type: mode, qty: quantity, newStock, hasPublicidad };
+    setLastResult(result);
+    setRecentScans(prev => [result, ...prev.slice(0, 9)]);
+  };
 
   const processCode = async (code) => {
     if (!code.trim() || processing) return;
@@ -38,24 +73,24 @@ export default function Scanner() {
     }
 
     const quantity = Number(qty);
-    let newStock = (product.stock || 0);
-    if (mode === "entrada") newStock += quantity;
-    else newStock = Math.max(0, newStock - quantity);
+    if (product.tiene_variante_publicidad) {
+      setPendingVariant({ product, quantity });
+      setProcessing(false);
+      return;
+    }
 
-    await base44.entities.Product.update(product.id, { stock: newStock });
-    await base44.entities.StockMovement.create({
-      product_id: product.id,
-      product_name: product.name,
-      product_sku: product.sku,
-      type: mode,
-      quantity,
-      notes: `Escáner USB`,
-    });
-
-    const result = { success: true, product, type: mode, qty: quantity, newStock };
-    setLastResult(result);
-    setRecentScans(prev => [result, ...prev.slice(0, 9)]);
+    await applyMovement(product, quantity, null);
     setProcessing(false);
+  };
+
+  const handleVariantChoice = async (hasPublicidad) => {
+    if (!pendingVariant) return;
+    setProcessing(true);
+    const { product, quantity } = pendingVariant;
+    setPendingVariant(null);
+    await applyMovement(product, quantity, hasPublicidad);
+    setProcessing(false);
+    inputRef.current?.focus();
   };
 
   const handleKeyDown = (e) => {
@@ -132,6 +167,45 @@ export default function Scanner() {
           </Button>
         </div>
       </div>
+
+      {/* Variant prompt modal */}
+      {pendingVariant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md border border-border p-6 space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-foreground">¿Tiene publicidad?</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                <strong>{pendingVariant.product.name}</strong> · SKU {pendingVariant.product.sku}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Sin pub: {pendingVariant.product.stock_sin_pub || 0} · Con pub: {pendingVariant.product.stock_con_pub || 0}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleVariantChoice(false)}
+                disabled={processing}
+                className="py-4 rounded-xl border-2 border-border bg-card hover:border-primary font-semibold text-sm transition-all"
+              >
+                Sin publicidad
+              </button>
+              <button
+                onClick={() => handleVariantChoice(true)}
+                disabled={processing}
+                className="py-4 rounded-xl border-2 border-primary bg-primary/10 hover:bg-primary/20 text-primary font-semibold text-sm transition-all"
+              >
+                Con publicidad
+              </button>
+            </div>
+            <button
+              onClick={() => setPendingVariant(null)}
+              className="w-full text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Last result */}
       {lastResult && (

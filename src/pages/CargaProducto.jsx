@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const INITIAL = { name: "", brand: "", model_code: "", category: "", size: "", color: "", publicidad: false };
+const INITIAL = { name: "", brand: "", model_code: "", category: "", size: "", color: "" };
 
 export default function CargaProducto() {
   const { token } = useAuth();
@@ -279,14 +279,6 @@ export default function CargaProducto() {
               <div className="col-span-2 space-y-1">
                 <Label className="text-xs text-muted-foreground">Color</Label>
                 <Input value={extractedData.color} onChange={e => set("color", e.target.value)} />
-              </div>
-              <div className="col-span-2 space-y-1">
-                <Label className="text-xs text-muted-foreground">Publicidad</Label>
-                <select value={extractedData.publicidad ? "si" : "no"} onChange={e => set("publicidad", e.target.value === "si")}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                  <option value="no">No</option>
-                  <option value="si">Sí</option>
-                </select>
               </div>
             </div>
 

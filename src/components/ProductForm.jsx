@@ -24,7 +24,9 @@ export default function ProductForm({ product, onSave, onClose }) {
     description: product?.description || "",
     image_url: product?.image_url || "",
     active: product?.active ?? true,
-    publicidad: product?.publicidad ?? false,
+    tiene_variante_publicidad: product?.tiene_variante_publicidad ?? false,
+    stock_sin_pub: product?.stock_sin_pub ?? 0,
+    stock_con_pub: product?.stock_con_pub ?? 0,
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -43,7 +45,15 @@ export default function ProductForm({ product, onSave, onClose }) {
   const handleSave = async () => {
     if (!form.name || !form.sku) return alert("Nombre y SKU son obligatorios");
     setSaving(true);
-    const data = { ...form, stock: Number(form.stock), min_stock: Number(form.min_stock) };
+    const sinPub = Number(form.stock_sin_pub) || 0;
+    const conPub = Number(form.stock_con_pub) || 0;
+    const data = {
+      ...form,
+      min_stock: Number(form.min_stock),
+      stock: form.tiene_variante_publicidad ? sinPub + conPub : Number(form.stock),
+      stock_sin_pub: form.tiene_variante_publicidad ? sinPub : 0,
+      stock_con_pub: form.tiene_variante_publicidad ? conPub : 0,
+    };
     if (product?.id) await base44.entities.Product.update(product.id, data);
     else await base44.entities.Product.create(data);
     onSave();
@@ -92,20 +102,34 @@ export default function ProductForm({ product, onSave, onClose }) {
             <Input value={form.color} onChange={e => set("color", e.target.value)} placeholder="Ej: Azul, Negro..." />
           </div>
 
-          <div className="space-y-1">
-            <Label>Stock Inicial</Label>
-            <Input type="number" value={form.stock} onChange={e => set("stock", e.target.value)} placeholder="0" />
+          <div className="sm:col-span-2 space-y-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.tiene_variante_publicidad}
+                onChange={e => set("tiene_variante_publicidad", e.target.checked)}
+                className="w-4 h-4 rounded border-border"
+              />
+              <span className="text-sm text-white">Este producto tiene variante con/sin publicidad</span>
+            </label>
           </div>
-          <div className="space-y-1">
-            <Label>Publicidad</Label>
-            <Select value={form.publicidad ? "si" : "no"} onValueChange={v => set("publicidad", v === "si")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no">No</SelectItem>
-                <SelectItem value="si">Sí</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {form.tiene_variante_publicidad ? (
+            <>
+              <div className="space-y-1">
+                <Label>Stock sin publicidad</Label>
+                <Input type="number" value={form.stock_sin_pub} onChange={e => set("stock_sin_pub", e.target.value)} placeholder="0" />
+              </div>
+              <div className="space-y-1">
+                <Label>Stock con publicidad</Label>
+                <Input type="number" value={form.stock_con_pub} onChange={e => set("stock_con_pub", e.target.value)} placeholder="0" />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1">
+              <Label>Stock Inicial</Label>
+              <Input type="number" value={form.stock} onChange={e => set("stock", e.target.value)} placeholder="0" />
+            </div>
+          )}
           <div className="sm:col-span-2 space-y-1">
             <Label>Imagen del Producto</Label>
             <div className="flex items-center gap-3">
