@@ -129,6 +129,18 @@ export default function Consulta() {
                 </div>
               </div>
             </div>
+            {product.tiene_variante_publicidad && (
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg p-3 border border-border bg-muted/20">
+                  <p className="text-muted-foreground text-xs mb-1">Sin publicidad</p>
+                  <p className="text-xl font-bold">{product.stock_sin_pub || 0}</p>
+                </div>
+                <div className="rounded-lg p-3 border border-primary/30 bg-primary/5">
+                  <p className="text-muted-foreground text-xs mb-1">Con publicidad</p>
+                  <p className="text-xl font-bold text-primary">{product.stock_con_pub || 0}</p>
+                </div>
+              </div>
+            )}
             {product.description && (
               <p className="text-sm text-muted-foreground">{product.description}</p>
             )}
