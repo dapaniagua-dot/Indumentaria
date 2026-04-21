@@ -35,6 +35,7 @@ export default function ProductDetail({ product, onClose }) {
           <Field label="Talle" value={product.size} />
           <Field label="Color" value={product.color} />
           <Field label="Stock" value={product.stock ?? 0} />
+          <Field label="Publicidad" value={product.publicidad ? "Sí" : "No"} />
           {product.description && (
             <div className="sm:col-span-2">
               <Field label="Descripción" value={product.description} />

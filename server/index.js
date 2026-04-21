@@ -38,6 +38,7 @@ async function initDB() {
         size TEXT DEFAULT '', color TEXT DEFAULT '', price NUMERIC DEFAULT 0,
         cost NUMERIC DEFAULT 0, stock INTEGER DEFAULT 0, min_stock INTEGER DEFAULT 5,
         description TEXT DEFAULT '', image_url TEXT DEFAULT '', active BOOLEAN DEFAULT true,
+        publicidad BOOLEAN DEFAULT false,
         created_date TIMESTAMPTZ DEFAULT NOW(), updated_date TIMESTAMPTZ DEFAULT NOW(), created_by TEXT DEFAULT ''
       );
       CREATE TABLE IF NOT EXISTS stock_movements (
@@ -59,6 +60,7 @@ async function initDB() {
     `);
     await exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT DEFAULT NULL`);
     await exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false`);
+    await exec(`ALTER TABLE products ADD COLUMN IF NOT EXISTS publicidad BOOLEAN DEFAULT false`);
   } else {
     await exec(`
       CREATE TABLE IF NOT EXISTS users (
@@ -72,6 +74,7 @@ async function initDB() {
         size TEXT DEFAULT '', color TEXT DEFAULT '', price REAL DEFAULT 0,
         cost REAL DEFAULT 0, stock INTEGER DEFAULT 0, min_stock INTEGER DEFAULT 5,
         description TEXT DEFAULT '', image_url TEXT DEFAULT '', active INTEGER DEFAULT 1,
+        publicidad INTEGER DEFAULT 0,
         created_date TEXT DEFAULT (datetime('now')), updated_date TEXT DEFAULT (datetime('now')), created_by TEXT DEFAULT ''
       );
       CREATE TABLE IF NOT EXISTS stock_movements (
@@ -91,6 +94,7 @@ async function initDB() {
     `);
     try { await exec(`ALTER TABLE users ADD COLUMN totp_secret TEXT DEFAULT NULL`); } catch {}
     try { await exec(`ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0`); } catch {}
+    try { await exec(`ALTER TABLE products ADD COLUMN publicidad INTEGER DEFAULT 0`); } catch {}
   }
   console.log(`Database ready [${USE_PG ? 'PostgreSQL' : 'SQLite'}]`);
 }
@@ -296,7 +300,7 @@ const ENTITY_CONFIG = {
 };
 
 const VALID_COLUMNS = {
-  products: new Set(['id','name','sku','model_code','category','brand','size','color','price','cost','stock','min_stock','description','image_url','active','created_date','updated_date','created_by']),
+  products: new Set(['id','name','sku','model_code','category','brand','size','color','price','cost','stock','min_stock','description','image_url','active','publicidad','created_date','updated_date','created_by']),
   stock_movements: new Set(['id','product_id','product_name','product_sku','type','quantity','notes','reference','user_email','created_date','updated_date','created_by']),
   entregas: new Set(['id','fecha_hora','receptor_nombre','receptor_apellido','receptor_dni','sector','prendas','total_prendas','entregado_por_email','entregado_por_nombre','created_date','updated_date','created_by']),
 };

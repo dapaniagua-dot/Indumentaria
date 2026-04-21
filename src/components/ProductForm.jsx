@@ -24,6 +24,7 @@ export default function ProductForm({ product, onSave, onClose }) {
     description: product?.description || "",
     image_url: product?.image_url || "",
     active: product?.active ?? true,
+    publicidad: product?.publicidad ?? false,
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -94,6 +95,16 @@ export default function ProductForm({ product, onSave, onClose }) {
           <div className="space-y-1">
             <Label>Stock Inicial</Label>
             <Input type="number" value={form.stock} onChange={e => set("stock", e.target.value)} placeholder="0" />
+          </div>
+          <div className="space-y-1">
+            <Label>Publicidad</Label>
+            <Select value={form.publicidad ? "si" : "no"} onValueChange={v => set("publicidad", v === "si")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no">No</SelectItem>
+                <SelectItem value="si">Sí</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="sm:col-span-2 space-y-1">
             <Label>Imagen del Producto</Label>
