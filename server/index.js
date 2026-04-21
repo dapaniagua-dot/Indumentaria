@@ -259,11 +259,13 @@ app.post('/api/analyze-label', authenticateToken, requireAdmin, upload.single('f
   "brand": "marca (ej: Adidas, Nike)",
   "model_code": "código de modelo/artículo (ej: IU1244, HT3695)",
   "category": "categoría: Remeras, Shorts, Buzos, Camperas, Pantalones, Medias, u otra",
-  "size": "talle (ej: S, M, L, XL, XXL)",
+  "size": "talle USA (el que figura como 'USA', 'US' o 'U.S.'). Prioridad: USA > UK > EUR. Ej: S, M, L, XL, XXL",
   "color": "código o nombre de color que figure en la etiqueta"
 }
 
-Si algún dato no es legible o no aparece, dejá el campo como string vacío "". El name debe ser descriptivo y corto.`
+Si algún dato no es legible o no aparece, dejá el campo como string vacío "". El name debe ser descriptivo y corto.
+
+IMPORTANTE para el talle: en etiquetas deportivas suele haber varios sistemas (USA, UK, EUR, FR, etc.). Devolvé SIEMPRE el talle USA. Si no aparece USA, usá UK. Si tampoco, usá EUR. Nunca mezcles sistemas.`
           }
         ]
       }]
