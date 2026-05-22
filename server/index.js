@@ -12,6 +12,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { query, queryOne, exec, USE_PG } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
+import { isR2Configured, presignDeliveryVideo, r2EndpointOrigin, r2PublicOrigin } from './r2.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -66,6 +67,7 @@ async function initDB() {
     await exec(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_sin_pub INTEGER DEFAULT 0`);
     await exec(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_con_pub INTEGER DEFAULT 0`);
     await exec(`ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS has_publicidad BOOLEAN DEFAULT NULL`);
+    await exec(`ALTER TABLE entregas ADD COLUMN IF NOT EXISTS video_url TEXT DEFAULT ''`);
   } else {
     await exec(`
       CREATE TABLE IF NOT EXISTS users (
@@ -105,6 +107,7 @@ async function initDB() {
     try { await exec(`ALTER TABLE products ADD COLUMN stock_sin_pub INTEGER DEFAULT 0`); } catch {}
     try { await exec(`ALTER TABLE products ADD COLUMN stock_con_pub INTEGER DEFAULT 0`); } catch {}
     try { await exec(`ALTER TABLE stock_movements ADD COLUMN has_publicidad INTEGER DEFAULT NULL`); } catch {}
+    try { await exec(`ALTER TABLE entregas ADD COLUMN video_url TEXT DEFAULT ''`); } catch {}
   }
   console.log(`Database ready [${USE_PG ? 'PostgreSQL' : 'SQLite'}]`);
 }
@@ -112,8 +115,18 @@ async function initDB() {
 // --- Express App ---
 const app = express();
 
+// Allow the browser to upload to R2 (connect-src) and play back videos (media-src).
+const r2ConnectSrc = r2EndpointOrigin();
+const r2MediaSrc = r2PublicOrigin();
 app.use(helmet({
-  contentSecurityPolicy: NODE_ENV === 'production' ? undefined : false,
+  contentSecurityPolicy: NODE_ENV === 'production' ? {
+    useDefaults: true,
+    directives: {
+      'connect-src': ["'self'", ...(r2ConnectSrc ? [r2ConnectSrc] : [])],
+      'media-src': ["'self'", 'blob:', ...(r2MediaSrc ? [r2MediaSrc] : [])],
+      'img-src': ["'self'", 'data:', 'blob:'],
+    },
+  } : false,
   crossOriginEmbedderPolicy: false,
 }));
 
@@ -302,6 +315,33 @@ IMPORTANTE para el talle: en etiquetas deportivas suele haber varios sistemas (U
   }
 });
 
+// --- Server time (trusted clock for burned-in video timestamp) ---
+app.get('/api/server-time', authenticateToken, (req, res) => {
+  const now = Date.now();
+  res.json({ now, iso: new Date(now).toISOString() });
+});
+
+// --- Feature flags (so the client knows if video recording is available) ---
+app.get('/api/config/features', authenticateToken, (req, res) => {
+  res.json({ videoEntregas: isR2Configured() });
+});
+
+// --- Presigned URL for direct browser -> R2 video upload ---
+app.post('/api/entregas/video-presign', authenticateToken, requireAdmin, async (req, res) => {
+  if (!isR2Configured()) return res.status(503).json({ error: 'Almacenamiento de video no configurado' });
+  const contentType = (req.body?.contentType || '').toString();
+  if (!/^video\/(webm|mp4)/.test(contentType)) {
+    return res.status(400).json({ error: 'Tipo de video no permitido' });
+  }
+  try {
+    const result = await presignDeliveryVideo({ contentType });
+    res.json(result);
+  } catch (err) {
+    console.error('Presign error:', err);
+    res.status(500).json({ error: 'No se pudo generar la URL de subida' });
+  }
+});
+
 // --- Entity CRUD ---
 const ENTITY_CONFIG = {
   Product: { table: 'products', jsonFields: [] },
@@ -312,7 +352,7 @@ const ENTITY_CONFIG = {
 const VALID_COLUMNS = {
   products: new Set(['id','name','sku','model_code','category','brand','size','color','price','cost','stock','min_stock','description','image_url','active','tiene_variante_publicidad','stock_sin_pub','stock_con_pub','created_date','updated_date','created_by']),
   stock_movements: new Set(['id','product_id','product_name','product_sku','type','quantity','notes','reference','user_email','has_publicidad','created_date','updated_date','created_by']),
-  entregas: new Set(['id','fecha_hora','receptor_nombre','receptor_apellido','receptor_dni','sector','prendas','total_prendas','entregado_por_email','entregado_por_nombre','created_date','updated_date','created_by']),
+  entregas: new Set(['id','fecha_hora','receptor_nombre','receptor_apellido','receptor_dni','sector','prendas','total_prendas','entregado_por_email','entregado_por_nombre','video_url','created_date','updated_date','created_by']),
 };
 
 const VALID_SORT = new Set(['created_date','updated_date','name','sku','stock','category','brand','product_name','type','quantity','fecha_hora','receptor_nombre']);

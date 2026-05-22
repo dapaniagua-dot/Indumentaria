@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { ArrowUpRight, ArrowDownRight, Filter, Printer, X } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Filter, Printer, X, Video } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -256,6 +256,28 @@ export default function Movements() {
                   ))}
                 </div>
               </div>
+
+              {selectedEntrega.video_url && (
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium uppercase flex items-center gap-1.5">
+                    <Video className="w-3.5 h-3.5" /> Video de la entrega
+                  </p>
+                  <video
+                    src={selectedEntrega.video_url}
+                    controls
+                    playsInline
+                    className="w-full rounded-lg bg-black max-h-[50vh]"
+                  />
+                  <a
+                    href={selectedEntrega.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-2 text-xs text-primary hover:underline"
+                  >
+                    Abrir en pestaña nueva ↗
+                  </a>
+                </div>
+              )}
 
               <div className="border-t border-border pt-3 text-xs text-muted-foreground">
                 Entregado por: {selectedEntrega.entregado_por_nombre} ({selectedEntrega.entregado_por_email})

@@ -91,6 +91,52 @@ export const base44 = {
       },
     },
   },
+  videoEntregas: {
+    // Whether R2 video storage is configured on the server.
+    async isEnabled() {
+      try {
+        const res = await fetch(`${API_BASE}/config/features`, { headers: getAuthHeaders() });
+        if (!res.ok) return false;
+        const data = await res.json();
+        return !!data.videoEntregas;
+      } catch {
+        return false;
+      }
+    },
+    // Trusted server time (ms epoch) for the burned-in clock.
+    async serverTime() {
+      const res = await fetch(`${API_BASE}/server-time`, { headers: getAuthHeaders() });
+      if (!res.ok) { handleAuthError(res); throw new Error('server-time failed'); }
+      return res.json();
+    },
+    // Get a presigned PUT URL to upload a delivery video directly to R2.
+    async presign(contentType) {
+      const res = await fetch(`${API_BASE}/entregas/video-presign`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ contentType }),
+      });
+      if (!res.ok) { handleAuthError(res); throw new Error('presign failed'); }
+      return res.json();
+    },
+    // Upload the recorded blob to R2 via the presigned URL, reporting progress (0..1).
+    upload(uploadUrl, blob, contentType, onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', contentType);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`upload failed (${xhr.status})`));
+        };
+        xhr.onerror = () => reject(new Error('upload network error'));
+        xhr.send(blob);
+      });
+    },
+  },
   auth: {
     async me() {
       const res = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
