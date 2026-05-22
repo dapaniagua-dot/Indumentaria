@@ -1,19 +1,26 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { UserPlus, Users as UsersIcon, Shield, Eye } from "lucide-react";
+import { UserPlus, Shield, ShieldOff, Eye, KeyRound, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export default function Users() {
-  const { token } = useAuth();
+  const { token, user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", full_name: "", role: "viewer" });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [busyId, setBusyId] = useState(null);
+  const [actionError, setActionError] = useState("");
+  const [resetTarget, setResetTarget] = useState(null);
+  const [newPass, setNewPass] = useState("");
+  const [newPass2, setNewPass2] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
@@ -50,6 +57,51 @@ export default function Users() {
     setSaving(false);
   };
 
+  const changeRole = async (u) => {
+    const newRole = u.role === "admin" ? "viewer" : "admin";
+    if (!window.confirm(`¿Cambiar el rol de ${u.full_name || u.email} a ${newRole === "admin" ? "Administrador" : "Viewer"}?`)) return;
+    setBusyId(u.id); setActionError("");
+    try {
+      const res = await fetch(`/api/auth/users/${u.id}/role`, { method: "PUT", headers, body: JSON.stringify({ role: newRole }) });
+      const data = await res.json();
+      if (!res.ok) setActionError(data.error || "Error al cambiar el rol");
+      else await loadUsers();
+    } catch { setActionError("Error de conexión"); }
+    setBusyId(null);
+  };
+
+  const toggleActive = async (u) => {
+    const next = !u.active;
+    if (!window.confirm(`¿${next ? "Activar" : "Desactivar"} a ${u.full_name || u.email}?`)) return;
+    setBusyId(u.id); setActionError("");
+    try {
+      const res = await fetch(`/api/auth/users/${u.id}/active`, { method: "PUT", headers, body: JSON.stringify({ active: next }) });
+      const data = await res.json();
+      if (!res.ok) setActionError(data.error || "Error al cambiar el estado");
+      else await loadUsers();
+    } catch { setActionError("Error de conexión"); }
+    setBusyId(null);
+  };
+
+  const openReset = (u) => { setResetTarget(u); setNewPass(""); setNewPass2(""); setActionError(""); };
+
+  const doReset = async (e) => {
+    e.preventDefault();
+    setActionError("");
+    if (newPass.length < 6) { setActionError("La contraseña debe tener al menos 6 caracteres"); return; }
+    if (newPass !== newPass2) { setActionError("Las contraseñas no coinciden"); return; }
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/auth/users/${resetTarget.id}/reset-password`, { method: "POST", headers, body: JSON.stringify({ password: newPass }) });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.error || "Error al resetear"); setResetting(false); return; }
+      const name = resetTarget.full_name || resetTarget.email;
+      setResetTarget(null);
+      alert(`Contraseña actualizada para ${name}.`);
+    } catch { setActionError("Error de conexión"); }
+    setResetting(false);
+  };
+
   const roleLabel = (role) => role === "admin" ? "Administrador" : "Viewer";
   const RoleIcon = (role) => role === "admin" ? Shield : Eye;
 
@@ -65,6 +117,12 @@ export default function Users() {
         </Button>
       </div>
 
+      {actionError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">{actionError}</p>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" /></div>
       ) : (
@@ -76,11 +134,14 @@ export default function Users() {
                 <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rol</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Estado</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {users.map(u => {
                 const Icon = RoleIcon(u.role);
+                const isSelf = currentUser?.id === u.id;
+                const busy = busyId === u.id;
                 return (
                   <tr key={u.id} className="odd:bg-card even:bg-muted/30">
                     <td className="px-5 py-4">
@@ -90,7 +151,7 @@ export default function Users() {
                         )}>
                           <Icon className={cn("w-4 h-4", u.role === "admin" ? "text-primary" : "text-muted-foreground")} />
                         </div>
-                        <p className="text-sm font-semibold text-white">{u.full_name || "—"}</p>
+                        <p className="text-sm font-semibold text-white">{u.full_name || "—"}{isSelf && <span className="text-xs text-muted-foreground font-normal"> (vos)</span>}</p>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-sm text-white/70">{u.email}</td>
@@ -107,6 +168,35 @@ export default function Users() {
                       )}>
                         {u.active ? "Activo" : "Inactivo"}
                       </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => changeRole(u)}
+                          disabled={busy || isSelf}
+                          title={isSelf ? "No podés cambiar tu propio rol" : (u.role === "admin" ? "Quitar admin" : "Hacer admin")}
+                          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                        >
+                          {u.role === "admin" ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => openReset(u)}
+                          disabled={busy}
+                          title="Resetear contraseña"
+                          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary disabled:opacity-30"
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => toggleActive(u)}
+                          disabled={busy || isSelf}
+                          title={isSelf ? "No podés desactivar tu cuenta" : (u.active ? "Desactivar" : "Activar")}
+                          className={cn("p-2 rounded-lg hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed",
+                            u.active ? "text-muted-foreground hover:text-destructive" : "text-muted-foreground hover:text-green-600")}
+                        >
+                          <Power className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -161,6 +251,38 @@ export default function Users() {
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancelar</Button>
                 <Button type="submit" className="flex-1 gap-2" disabled={saving}>
                   {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><UserPlus className="w-4 h-4" /> Crear</>}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setResetTarget(null)}>
+          <div className="bg-card rounded-2xl border border-border shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-white mb-1 flex items-center gap-2"><KeyRound className="w-5 h-5" /> Resetear contraseña</h2>
+            <p className="text-sm text-muted-foreground mb-4">{resetTarget.full_name || resetTarget.email}</p>
+            <form onSubmit={doReset} className="space-y-4">
+              <div className="space-y-1">
+                <Label>Nueva contraseña</Label>
+                <Input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Mínimo 6 caracteres" autoFocus minLength={6} />
+              </div>
+              <div className="space-y-1">
+                <Label>Repetir contraseña</Label>
+                <Input type="password" value={newPass2} onChange={e => setNewPass2(e.target.value)} placeholder="Repetir" minLength={6} />
+              </div>
+
+              {actionError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">{actionError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setResetTarget(null)}>Cancelar</Button>
+                <Button type="submit" className="flex-1 gap-2" disabled={resetting}>
+                  {resetting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><KeyRound className="w-4 h-4" /> Guardar</>}
                 </Button>
               </div>
             </form>

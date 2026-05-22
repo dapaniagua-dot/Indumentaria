@@ -230,6 +230,38 @@ app.get('/api/auth/users', authenticateToken, requireAdmin, async (req, res) => 
   res.json(rows);
 });
 
+// Change a user's role (admin only)
+app.put('/api/auth/users/:id/role', authenticateToken, requireAdmin, async (req, res) => {
+  const { role } = req.body;
+  if (!['admin', 'viewer'].includes(role)) return res.status(400).json({ error: 'Rol inválido' });
+  if (req.params.id === req.user.id) return res.status(400).json({ error: 'No podés cambiar tu propio rol' });
+  const target = await queryOne('SELECT id FROM users WHERE id = ?', [req.params.id]);
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
+  await query('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
+  res.json({ ok: true });
+});
+
+// Reset a user's password (admin only)
+app.post('/api/auth/users/:id/reset-password', authenticateToken, requireAdmin, async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  const target = await queryOne('SELECT id FROM users WHERE id = ?', [req.params.id]);
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const hash = await bcrypt.hash(password, 12);
+  await query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.params.id]);
+  res.json({ ok: true });
+});
+
+// Activate / deactivate a user (admin only)
+app.put('/api/auth/users/:id/active', authenticateToken, requireAdmin, async (req, res) => {
+  const { active } = req.body;
+  if (req.params.id === req.user.id) return res.status(400).json({ error: 'No podés desactivar tu propia cuenta' });
+  const target = await queryOne('SELECT id FROM users WHERE id = ?', [req.params.id]);
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
+  await query('UPDATE users SET active = ? WHERE id = ?', [USE_PG ? !!active : (active ? 1 : 0), req.params.id]);
+  res.json({ ok: true });
+});
+
 app.get('/api/auth/status', async (req, res) => {
   const row = await queryOne('SELECT COUNT(*) as c FROM users');
   res.json({ needsSetup: parseInt(row.c) === 0 });
