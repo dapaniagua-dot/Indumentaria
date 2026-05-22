@@ -128,6 +128,10 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
     const draw = () => {
       const v = videoRef.current;
       const c = canvasRef.current;
+      // self-heal: re-attach the live stream if the <video> was (re)mounted
+      if (v && streamRef.current && v.srcObject !== streamRef.current) {
+        try { v.srcObject = streamRef.current; v.muted = true; v.play().catch(() => {}); } catch { /* ignore */ }
+      }
       if (c && v) {
         const w = v.videoWidth || 1280;
         const h = v.videoHeight || 720;
