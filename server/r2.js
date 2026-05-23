@@ -66,3 +66,17 @@ export async function presignDeliveryVideo({ contentType }) {
 
   return { uploadUrl, publicUrl: `${PUBLIC_URL}/${key}`, key, contentType: type };
 }
+
+const CT_BY_EXT = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+const EXT_BY_CT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+
+// Upload a buffer directly to R2 (server-side) and return its public URL.
+export async function uploadObject({ buffer, contentType, ext, keyPrefix = 'uploads' }) {
+  let cleanExt = (ext || '').replace(/^\./, '').toLowerCase();
+  if (!cleanExt && contentType) cleanExt = EXT_BY_CT[contentType.toLowerCase()] || '';
+  if (!cleanExt) cleanExt = 'bin';
+  const ct = contentType || CT_BY_EXT[cleanExt] || 'application/octet-stream';
+  const key = `${keyPrefix}/${uuidv4()}.${cleanExt}`;
+  await client().send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: buffer, ContentType: ct }));
+  return { key, publicUrl: `${PUBLIC_URL}/${key}` };
+}

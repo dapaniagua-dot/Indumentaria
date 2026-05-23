@@ -12,7 +12,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { query, queryOne, exec, USE_PG } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
-import { isR2Configured, presignDeliveryVideo, r2EndpointOrigin, r2PublicOrigin } from './r2.js';
+import { isR2Configured, presignDeliveryVideo, uploadObject, r2EndpointOrigin, r2PublicOrigin } from './r2.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -124,7 +124,7 @@ app.use(helmet({
     directives: {
       'connect-src': ["'self'", ...(r2ConnectSrc ? [r2ConnectSrc] : [])],
       'media-src': ["'self'", 'blob:', ...(r2MediaSrc ? [r2MediaSrc] : [])],
-      'img-src': ["'self'", 'data:', 'blob:'],
+      'img-src': ["'self'", 'data:', 'blob:', ...(r2MediaSrc ? [r2MediaSrc] : [])],
     },
   } : false,
   crossOriginEmbedderPolicy: false,
@@ -276,7 +276,7 @@ app.get('/api/auth/status', async (req, res) => {
 
 // --- File Upload ---
 const upload = multer({
-  dest: UPLOADS_DIR,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.originalname)) cb(null, true);
@@ -284,11 +284,20 @@ const upload = multer({
   }
 });
 
-app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => {
+app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const ext = path.extname(req.file.originalname);
+  // Preferir R2 (durable); si no está configurado, guardar en el volumen local
+  if (isR2Configured()) {
+    try {
+      const { publicUrl } = await uploadObject({ buffer: req.file.buffer, contentType: req.file.mimetype, ext, keyPrefix: 'productos' });
+      return res.json({ file_url: publicUrl });
+    } catch (err) {
+      console.error('R2 upload error, usando disco local:', err.message);
+    }
+  }
   const newName = `${uuidv4()}${ext}`;
-  fs.renameSync(req.file.path, path.join(UPLOADS_DIR, newName));
+  fs.writeFileSync(path.join(UPLOADS_DIR, newName), req.file.buffer);
   res.json({ file_url: `/uploads/${newName}` });
 });
 
@@ -300,8 +309,7 @@ app.post('/api/analyze-label', authenticateToken, requireRoles('admin', 'carga')
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada' });
 
   try {
-    const imageBuffer = fs.readFileSync(req.file.path);
-    const base64Image = imageBuffer.toString('base64');
+    const base64Image = req.file.buffer.toString('base64');
     const ext = path.extname(req.file.originalname).toLowerCase();
     const mediaType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
 
@@ -337,9 +345,6 @@ IMPORTANTE para el talle: en etiquetas deportivas suele haber varios sistemas (U
       }]
     });
 
-    // Clean up temp file
-    fs.unlinkSync(req.file.path);
-
     const text = message.content[0].text.trim();
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
@@ -347,8 +352,6 @@ IMPORTANTE para el talle: en etiquetas deportivas suele haber varios sistemas (U
     const parsed = JSON.parse(jsonStr);
     res.json(parsed);
   } catch (err) {
-    // Clean up temp file on error
-    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     console.error('Label analysis error:', err);
     res.status(500).json({ error: 'Error al analizar la etiqueta: ' + err.message });
   }
@@ -587,10 +590,47 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// --- One-time migration: mover fotos del volumen local a R2 ---
+// Corre en background al arrancar. Es idempotente: sube cada imagen a R2,
+// actualiza products.image_url y borra el archivo local. En arranques
+// posteriores no encuentra nada que migrar.
+async function migrateUploadsToR2() {
+  if (!isR2Configured()) return;
+  let files;
+  try { files = fs.readdirSync(UPLOADS_DIR); } catch { return; }
+  if (!files.length) return;
+
+  const rows = await query("SELECT image_url FROM products WHERE image_url LIKE '/uploads/%'");
+  const referenced = new Set(rows.map(r => r.image_url.replace('/uploads/', '')));
+
+  let migrated = 0, orphans = 0, errors = 0;
+  for (const f of files) {
+    const full = path.join(UPLOADS_DIR, f);
+    try {
+      if (!fs.statSync(full).isFile()) continue;
+      if (referenced.has(f)) {
+        const buffer = fs.readFileSync(full);
+        const { publicUrl } = await uploadObject({ buffer, ext: path.extname(f), keyPrefix: 'productos' });
+        await query('UPDATE products SET image_url = ? WHERE image_url = ?', [publicUrl, `/uploads/${f}`]);
+        fs.unlinkSync(full);
+        migrated++;
+      } else {
+        fs.unlinkSync(full); // archivo huérfano (no referenciado): liberar espacio
+        orphans++;
+      }
+    } catch (err) {
+      errors++;
+      console.error('[migrate uploads->R2] error en', f, err.message);
+    }
+  }
+  console.log(`[migrate uploads->R2] migrados=${migrated} huerfanos=${orphans} errores=${errors}`);
+}
+
 // --- Start ---
 initDB().then(() => {
   app.listen(PORT, () => {
     console.log(`Stock API running on port ${PORT} [${NODE_ENV}] [${USE_PG ? 'PostgreSQL' : 'SQLite'}]`);
+    migrateUploadsToR2().catch(err => console.error('[migrate uploads->R2] falló:', err.message));
   });
 }).catch(err => {
   console.error('Failed to init database:', err);
