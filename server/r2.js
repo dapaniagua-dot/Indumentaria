@@ -36,6 +36,10 @@ function client() {
       region: 'auto',
       endpoint: ENDPOINT,
       credentials: { accessKeyId: ACCESS_KEY_ID, secretAccessKey: SECRET_ACCESS_KEY },
+      // El AWS SDK v3 agrega headers de checksum (x-amz-checksum-*) por defecto,
+      // que rompen las subidas con URL firmada desde el navegador hacia R2.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
   return _client;
