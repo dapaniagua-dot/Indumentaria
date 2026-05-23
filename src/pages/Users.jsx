@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { UserPlus, Shield, ShieldOff, Eye, KeyRound, Power } from "lucide-react";
+import { UserPlus, Shield, Eye, KeyRound, Power, PackagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,9 +57,9 @@ export default function Users() {
     setSaving(false);
   };
 
-  const changeRole = async (u) => {
-    const newRole = u.role === "admin" ? "viewer" : "admin";
-    if (!window.confirm(`¿Cambiar el rol de ${u.full_name || u.email} a ${newRole === "admin" ? "Administrador" : "Viewer"}?`)) return;
+  const changeRole = async (u, newRole) => {
+    if (!newRole || newRole === u.role) return;
+    if (!window.confirm(`¿Cambiar el rol de ${u.full_name || u.email} a ${roleLabel(newRole)}?`)) return;
     setBusyId(u.id); setActionError("");
     try {
       const res = await fetch(`/api/auth/users/${u.id}/role`, { method: "PUT", headers, body: JSON.stringify({ role: newRole }) });
@@ -102,8 +102,8 @@ export default function Users() {
     setResetting(false);
   };
 
-  const roleLabel = (role) => role === "admin" ? "Administrador" : "Viewer";
-  const RoleIcon = (role) => role === "admin" ? Shield : Eye;
+  const roleLabel = (role) => role === "admin" ? "Administrador" : role === "carga" ? "Cargador" : "Viewer";
+  const RoleIcon = (role) => role === "admin" ? Shield : role === "carga" ? PackagePlus : Eye;
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -171,14 +171,17 @@ export default function Users() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => changeRole(u)}
+                        <select
+                          value={u.role}
                           disabled={busy || isSelf}
-                          title={isSelf ? "No podés cambiar tu propio rol" : (u.role === "admin" ? "Quitar admin" : "Hacer admin")}
-                          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                          onChange={(e) => changeRole(u, e.target.value)}
+                          title={isSelf ? "No podés cambiar tu propio rol" : "Cambiar rol"}
+                          className="bg-background border border-border rounded-lg text-xs px-2 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          {u.role === "admin" ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-                        </button>
+                          <option value="viewer">Viewer</option>
+                          <option value="carga">Cargador</option>
+                          <option value="admin">Admin</option>
+                        </select>
                         <button
                           onClick={() => openReset(u)}
                           disabled={busy}
@@ -227,13 +230,19 @@ export default function Users() {
                 <Label>Rol</Label>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => set("role", "viewer")}
-                    className={cn("flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all",
+                    className={cn("flex-1 flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl text-xs font-medium border transition-all",
                       form.role === "viewer" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
                     )}>
                     <Eye className="w-4 h-4" /> Viewer
                   </button>
+                  <button type="button" onClick={() => set("role", "carga")}
+                    className={cn("flex-1 flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl text-xs font-medium border transition-all",
+                      form.role === "carga" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
+                    )}>
+                    <PackagePlus className="w-4 h-4" /> Cargador
+                  </button>
                   <button type="button" onClick={() => set("role", "admin")}
-                    className={cn("flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all",
+                    className={cn("flex-1 flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl text-xs font-medium border transition-all",
                       form.role === "admin" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
                     )}>
                     <Shield className="w-4 h-4" /> Admin

@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import Layout from './components/Layout';
@@ -14,9 +14,12 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import CargaProducto from './pages/CargaProducto';
 
-const AdminRoute = ({ children }) => {
+// Página de inicio según el rol (los "carga" no ven el Dashboard)
+const homeFor = (role) => (role === 'carga' ? '/carga' : '/');
+
+const RoleRoute = ({ allow, children }) => {
   const { user } = useAuth();
-  if (user?.role !== 'admin') return <PageNotFound />;
+  if (!allow.includes(user?.role)) return <Navigate to={homeFor(user?.role)} replace />;
   return children;
 };
 
@@ -38,13 +41,13 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/movements" element={<Movements />} />
-        <Route path="/consulta" element={<Consulta />} />
-        <Route path="/entregas" element={<AdminRoute><Entregas /></AdminRoute>} />
-        <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
-        <Route path="/carga" element={<AdminRoute><CargaProducto /></AdminRoute>} />
+        <Route path="/" element={<RoleRoute allow={['admin', 'viewer']}><Dashboard /></RoleRoute>} />
+        <Route path="/products" element={<RoleRoute allow={['admin', 'viewer', 'carga']}><Products /></RoleRoute>} />
+        <Route path="/movements" element={<RoleRoute allow={['admin', 'viewer']}><Movements /></RoleRoute>} />
+        <Route path="/consulta" element={<RoleRoute allow={['admin', 'viewer']}><Consulta /></RoleRoute>} />
+        <Route path="/entregas" element={<RoleRoute allow={['admin']}><Entregas /></RoleRoute>} />
+        <Route path="/users" element={<RoleRoute allow={['admin']}><Users /></RoleRoute>} />
+        <Route path="/carga" element={<RoleRoute allow={['admin', 'carga']}><CargaProducto /></RoleRoute>} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

@@ -165,6 +165,13 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function requireRoles(...roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) return res.status(403).json({ error: 'No autorizado' });
+    next();
+  };
+}
+
 // --- Auth Routes ---
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -233,7 +240,7 @@ app.get('/api/auth/users', authenticateToken, requireAdmin, async (req, res) => 
 // Change a user's role (admin only)
 app.put('/api/auth/users/:id/role', authenticateToken, requireAdmin, async (req, res) => {
   const { role } = req.body;
-  if (!['admin', 'viewer'].includes(role)) return res.status(400).json({ error: 'Rol inválido' });
+  if (!['admin', 'viewer', 'carga'].includes(role)) return res.status(400).json({ error: 'Rol inválido' });
   if (req.params.id === req.user.id) return res.status(400).json({ error: 'No podés cambiar tu propio rol' });
   const target = await queryOne('SELECT id FROM users WHERE id = ?', [req.params.id]);
   if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -286,7 +293,7 @@ app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => 
 });
 
 // --- Label Analysis with Claude Vision ---
-app.post('/api/analyze-label', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
+app.post('/api/analyze-label', authenticateToken, requireRoles('admin', 'carga'), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

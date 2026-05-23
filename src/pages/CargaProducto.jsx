@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
-import { Upload, Camera, Tag, Package, Check, X, Loader2, AlertTriangle, RotateCcw, Image as ImageIcon } from "lucide-react";
+import { Upload, Camera, Tag, Check, X, Loader2, AlertTriangle, RotateCcw, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 
 const INITIAL = { name: "", brand: "", model_code: "", category: "", size: "", color: "" };
 

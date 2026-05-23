@@ -1,5 +1,5 @@
 import { Link, useLocation, Outlet } from "react-router-dom";
-import { LayoutDashboard, Package, History, Menu, X, Search, Truck, LogOut, Users, PackagePlus, Shield } from "lucide-react";
+import { LayoutDashboard, Package, History, Menu, Search, Truck, LogOut, Users, PackagePlus, Shield } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
@@ -7,22 +7,23 @@ import AdidasLogo from "./AdidasLogo";
 import TwoFactorModal from "./TwoFactorModal";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Panel de Informacion" },
-  { to: "/products", icon: Package, label: "Productos" },
-  { to: "/carga", icon: PackagePlus, label: "Cargar Producto", adminOnly: true },
-  { to: "/entregas", icon: Truck, label: "Entregas", adminOnly: true },
-  { to: "/movements", icon: History, label: "Movimientos" },
-  { to: "/consulta", icon: Search, label: "Consulta" },
-  { to: "/users", icon: Users, label: "Usuarios", adminOnly: true },
+  { to: "/", icon: LayoutDashboard, label: "Panel de Informacion", roles: ["admin", "viewer"] },
+  { to: "/products", icon: Package, label: "Productos", roles: ["admin", "viewer", "carga"] },
+  { to: "/carga", icon: PackagePlus, label: "Cargar Producto", roles: ["admin", "carga"] },
+  { to: "/entregas", icon: Truck, label: "Entregas", roles: ["admin"] },
+  { to: "/movements", icon: History, label: "Movimientos", roles: ["admin", "viewer"] },
+  { to: "/consulta", icon: Search, label: "Consulta", roles: ["admin", "viewer"] },
+  { to: "/users", icon: Users, label: "Usuarios", roles: ["admin"] },
 ];
+
+const ROLE_LABELS = { admin: "Administrador", viewer: "Viewer", carga: "Cargador" };
 
 export default function Layout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
   const { user, logout } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const visibleNav = navItems.filter(item => isAdmin || !item.adminOnly);
+  const visibleNav = navItems.filter(item => item.roles.includes(user?.role));
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -78,7 +79,7 @@ export default function Layout() {
               </div>
               <div className="min-w-0">
                 <p className="text-white/80 text-xs font-industry truncate">{user.full_name || user.email}</p>
-                <p className="text-white/50 text-[10px] font-industry uppercase tracking-wider">{user.role}</p>
+                <p className="text-white/50 text-[10px] font-industry uppercase tracking-wider">{ROLE_LABELS[user.role] || user.role}</p>
               </div>
             </div>
           )}
