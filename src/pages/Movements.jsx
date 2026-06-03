@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { ArrowUpRight, ArrowDownRight, Filter, Printer, X, Video } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Filter, Printer, X, Video, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ export default function Movements() {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("movimientos");
   const [selectedEntrega, setSelectedEntrega] = useState(null);
+  const [downloadingVideo, setDownloadingVideo] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -44,6 +45,32 @@ export default function Movements() {
   const printEntrega = (entrega) => {
     const doc = generateEntregaPDF(entrega);
     doc.save(`entrega-${entrega.receptor_apellido}-${entrega.fecha_hora?.replace(/[/:, ]/g, "-")}.pdf`);
+  };
+
+  // Descarga el video de la entrega como archivo (se baja a la PC y desde
+  // ahí lo subís a Drive, lo guardás donde quieras, etc.)
+  const downloadEntregaVideo = async (entrega) => {
+    if (!entrega?.video_url) return;
+    setDownloadingVideo(true);
+    try {
+      const res = await fetch(entrega.video_url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const ext = (entrega.video_url.split("?")[0].split(".").pop() || "webm").toLowerCase();
+      const tag = (entrega.receptor_apellido || "sin-apellido").replace(/\s+/g, "-");
+      const stamp = (entrega.fecha_hora || "").replace(/[^0-9]/g, "").slice(0, 12) || String(Date.now());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `entrega-${tag}-${stamp}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("No se pudo descargar el video: " + err.message);
+    }
+    setDownloadingVideo(false);
   };
 
   return (
@@ -268,14 +295,24 @@ export default function Movements() {
                     playsInline
                     className="w-full rounded-lg bg-black max-h-[50vh]"
                   />
-                  <a
-                    href={selectedEntrega.video_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-2 text-xs text-primary hover:underline"
-                  >
-                    Abrir en pestaña nueva ↗
-                  </a>
+                  <div className="flex items-center gap-4 mt-2">
+                    <button
+                      onClick={() => downloadEntregaVideo(selectedEntrega)}
+                      disabled={downloadingVideo}
+                      className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline disabled:opacity-50 disabled:cursor-wait"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      {downloadingVideo ? "Descargando…" : "Descargar video"}
+                    </button>
+                    <a
+                      href={selectedEntrega.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Abrir en pestaña nueva ↗
+                    </a>
+                  </div>
                 </div>
               )}
 
