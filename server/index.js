@@ -122,7 +122,7 @@ app.use(helmet({
   contentSecurityPolicy: NODE_ENV === 'production' ? {
     useDefaults: true,
     directives: {
-      'connect-src': ["'self'", ...(r2ConnectSrc ? [r2ConnectSrc] : [])],
+      'connect-src': ["'self'", 'https://*.r2.cloudflarestorage.com', ...(r2ConnectSrc ? [r2ConnectSrc] : [])],
       'media-src': ["'self'", 'blob:', ...(r2MediaSrc ? [r2MediaSrc] : [])],
       'img-src': ["'self'", 'data:', 'blob:', ...(r2MediaSrc ? [r2MediaSrc] : [])],
     },

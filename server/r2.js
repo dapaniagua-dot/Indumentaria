@@ -40,6 +40,10 @@ function client() {
       // que rompen las subidas con URL firmada desde el navegador hacia R2.
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
+      // Path-style URLs: account.r2.cloudflarestorage.com/bucket/... (host fijo).
+      // Sin esto el SDK arma URLs virtual-host (bucket.account.r2...) con un host
+      // distinto por bucket, y la CSP del navegador las bloquea.
+      forcePathStyle: true,
     });
   }
   return _client;
