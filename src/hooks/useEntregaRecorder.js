@@ -57,9 +57,16 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
   const [state, setState] = useState("idle"); // idle|starting|ready|recording|denied|error
   const [devices, setDevices] = useState([]);
   const [deviceId, setDeviceId] = useState("");
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [audioDeviceId, setAudioDeviceId] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const [hasAudio, setHasAudio] = useState(false);
+  const [volumeLevel, setVolumeLevel] = useState(0);
+
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const vmRafRef = useRef(null);
 
   // --- Overlay drawing loop ---
   const drawOverlay = useCallback((ctx, w, h) => {
@@ -199,6 +206,37 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
     }
   }, []);
 
+  // --- Volume meter: muestra el nivel del mic en vivo para diagnosticar ---
+  const teardownVolumeMeter = useCallback(() => {
+    if (vmRafRef.current) { cancelAnimationFrame(vmRafRef.current); vmRafRef.current = null; }
+    try { analyserRef.current?.disconnect(); } catch { /* ignore */ }
+    try { audioCtxRef.current?.close(); } catch { /* ignore */ }
+    analyserRef.current = null;
+    audioCtxRef.current = null;
+    setVolumeLevel(0);
+  }, []);
+
+  const setupVolumeMeter = useCallback((stream) => {
+    try {
+      if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtxRef.current.createMediaStreamSource(stream);
+      const an = audioCtxRef.current.createAnalyser();
+      an.fftSize = 256;
+      source.connect(an);
+      analyserRef.current = an;
+      const buf = new Uint8Array(an.frequencyBinCount);
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (const v of buf) { const n = (v - 128) / 128; sum += n * n; }
+        const rms = Math.sqrt(sum / buf.length);
+        setVolumeLevel(Math.min(1, rms * 4));
+        vmRafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch (e) { console.warn("volume meter setup error:", e?.message); }
+  }, []);
+
   // --- Start / switch camera (preview only) ---
   const startCamera = useCallback(async (preferredId) => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -216,8 +254,12 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
       } catch { offsetRef.current = 0; }
 
       stopTracks();
+      teardownVolumeMeter();
       const id = preferredId || deviceId;
       const videoConstr = id ? { deviceId: { exact: id } } : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } };
+      const audioConstr = audioDeviceId
+        ? { deviceId: { exact: audioDeviceId }, echoCancellation: true, noiseSuppression: true }
+        : { echoCancellation: true, noiseSuppression: true };
 
       // Estrategia: pedimos video y audio juntos. Si falla por audio (típico:
       // permiso de mic denegado o el dispositivo está ocupado), reintentamos
@@ -226,7 +268,7 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
       let stream;
       let gotAudio = false;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstr, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstr, audio: audioConstr });
         gotAudio = stream.getAudioTracks().length > 0;
       } catch (errAudio) {
         console.warn('getUserMedia con audio falló:', errAudio?.name, errAudio?.message);
@@ -239,6 +281,7 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
       }
       setHasAudio(gotAudio);
       streamRef.current = stream;
+      if (gotAudio) setupVolumeMeter(stream);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true;
@@ -249,9 +292,13 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
       try {
         const all = await navigator.mediaDevices.enumerateDevices();
         const cams = all.filter((d) => d.kind === "videoinput");
+        const mics = all.filter((d) => d.kind === "audioinput");
         setDevices(cams);
-        const active = stream.getVideoTracks()[0]?.getSettings?.().deviceId;
-        if (active) setDeviceId(active);
+        setAudioDevices(mics);
+        const activeVid = stream.getVideoTracks()[0]?.getSettings?.().deviceId;
+        if (activeVid) setDeviceId(activeVid);
+        const activeMic = stream.getAudioTracks()[0]?.getSettings?.().deviceId;
+        if (activeMic) setAudioDeviceId(activeMic);
       } catch { /* ignore */ }
 
       startLoop();
@@ -268,7 +315,7 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
       }
       return false;
     }
-  }, [deviceId, startLoop, stopTracks]);
+  }, [deviceId, audioDeviceId, startLoop, stopTracks, setupVolumeMeter, teardownVolumeMeter]);
 
   // --- Start recording ---
   const startRecording = useCallback(() => {
@@ -336,15 +383,17 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
       try { recorderRef.current.stop(); } catch { /* ignore */ }
     }
     stopTracks();
+    teardownVolumeMeter();
     recordingRef.current = false;
-  }, [stopTracks]);
+  }, [stopTracks, teardownVolumeMeter]);
 
   useEffect(() => () => cleanup(), [cleanup]);
 
   return {
     videoRef, canvasRef,
     state, devices, deviceId, setDeviceId,
-    elapsed, errorMsg, enabled, hasAudio,
+    audioDevices, audioDeviceId, setAudioDeviceId,
+    elapsed, errorMsg, enabled, hasAudio, volumeLevel,
     isRecording: state === "recording",
     startCamera, startRecording, stopRecording, cleanup,
     maxDurationSec: MAX_DURATION_SEC,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Scan, Check, Trash2, Package, Video, VideoOff, Camera, Loader2, AlertTriangle, MicOff } from "lucide-react";
+import { Scan, Check, Trash2, Package, Video, VideoOff, Camera, Loader2, AlertTriangle, MicOff, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -336,6 +336,44 @@ export default function Entregas() {
               </div>
             )}
           </div>
+
+          {/* Selector de micrófono + barra de nivel en vivo */}
+          {recorder.hasAudio && (recorder.state === "ready" || recorder.state === "recording") && (
+            <div className="space-y-2">
+              {!recorder.isRecording && recorder.audioDevices.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-muted-foreground" />
+                  <select
+                    value={recorder.audioDeviceId}
+                    onChange={(e) => { recorder.setAudioDeviceId(e.target.value); recorder.startCamera(recorder.deviceId); }}
+                    className="bg-background border border-border rounded-lg text-sm px-2 py-1.5 max-w-[260px]"
+                  >
+                    {recorder.audioDevices.map((d, i) => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${i + 1}`}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Mic className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-[width] duration-75 ${recorder.volumeLevel > 0.05 ? "bg-green-500" : "bg-muted-foreground/30"}`}
+                    style={{ width: `${Math.round(recorder.volumeLevel * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground tabular-nums w-12 text-right">
+                  {recorder.volumeLevel > 0.05 ? "captando" : "silencio"}
+                </span>
+              </div>
+              {recorder.volumeLevel <= 0.05 && (
+                <p className="text-[11px] text-amber-600">
+                  El mic no está captando sonido. Hablá frente al mic — si la barra no se mueve,
+                  cambialo en el selector o revisá el volumen de entrada en Windows.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Selector de cámara (solo antes de grabar) */}
           {!recorder.isRecording && recorder.devices.length > 1 && (
