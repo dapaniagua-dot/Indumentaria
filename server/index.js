@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import { query, queryOne, exec, USE_PG } from './db.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { isR2Configured, presignDeliveryVideo, uploadObject, r2EndpointOrigin, r2PublicOrigin } from './r2.js';
+import { Readable } from 'node:stream';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -362,6 +363,38 @@ app.get('/api/server-time', authenticateToken, (req, res) => {
 // --- Feature flags (so the client knows if video recording is available) ---
 app.get('/api/config/features', authenticateToken, (req, res) => {
   res.json({ videoEntregas: isR2Configured() });
+});
+
+// --- Descarga del video como archivo, vía proxy del server ---
+// Tiramos un fetch a R2 desde el server (no hay CORS) y lo reenviamos al
+// navegador con Content-Disposition: attachment + un nombre lindo.
+app.get('/api/entregas/:id/video', authenticateToken, async (req, res) => {
+  const row = await queryOne('SELECT * FROM entregas WHERE id = ?', [req.params.id]);
+  if (!row) return res.status(404).json({ error: 'Entrega no encontrada' });
+  if (!row.video_url) return res.status(404).json({ error: 'Esta entrega no tiene video' });
+
+  try {
+    const upstream = await fetch(row.video_url);
+    if (!upstream.ok || !upstream.body) {
+      return res.status(502).json({ error: `Error al traer el video de R2 (HTTP ${upstream.status})` });
+    }
+
+    const urlPath = row.video_url.split('?')[0];
+    const ext = (urlPath.split('.').pop() || 'webm').toLowerCase();
+    const apellido = (row.receptor_apellido || 'sin-apellido').replace(/[^\w-]/g, '-');
+    const stamp = (row.fecha_hora || '').replace(/[^0-9]/g, '').slice(0, 12) || String(Date.now());
+    const filename = `entrega-${apellido}-${stamp}.${ext}`;
+
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || `video/${ext}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const cl = upstream.headers.get('content-length');
+    if (cl) res.setHeader('Content-Length', cl);
+
+    Readable.fromWeb(upstream.body).pipe(res);
+  } catch (err) {
+    console.error('video download error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error descargando el video' });
+  }
 });
 
 // --- Presigned URL for direct browser -> R2 video upload ---

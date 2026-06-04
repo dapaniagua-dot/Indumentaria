@@ -47,22 +47,29 @@ export default function Movements() {
     doc.save(`entrega-${entrega.receptor_apellido}-${entrega.fecha_hora?.replace(/[/:, ]/g, "-")}.pdf`);
   };
 
-  // Descarga el video de la entrega como archivo (se baja a la PC y desde
-  // ahí lo subís a Drive, lo guardás donde quieras, etc.)
+  // Descarga el video pasando por el server (proxy) para evitar CORS de R2.
+  // El server le pone Content-Disposition con un nombre lindo.
   const downloadEntregaVideo = async (entrega) => {
-    if (!entrega?.video_url) return;
+    if (!entrega?.id || !entrega?.video_url) return;
     setDownloadingVideo(true);
     try {
-      const res = await fetch(entrega.video_url);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/entregas/${entrega.id}/video`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const ext = (entrega.video_url.split("?")[0].split(".").pop() || "webm").toLowerCase();
+
+      // Nombre desde el header del server, con fallback
+      const cd = res.headers.get("content-disposition") || "";
+      const m = cd.match(/filename="(.+?)"/);
       const tag = (entrega.receptor_apellido || "sin-apellido").replace(/\s+/g, "-");
-      const stamp = (entrega.fecha_hora || "").replace(/[^0-9]/g, "").slice(0, 12) || String(Date.now());
+      const filename = m ? m[1] : `entrega-${tag}.webm`;
+
       const a = document.createElement("a");
       a.href = url;
-      a.download = `entrega-${tag}-${stamp}.${ext}`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
