@@ -58,8 +58,16 @@ async function initDB() {
         entregado_por_email TEXT DEFAULT '', entregado_por_nombre TEXT DEFAULT '',
         created_date TIMESTAMPTZ DEFAULT NOW(), updated_date TIMESTAMPTZ DEFAULT NOW(), created_by TEXT DEFAULT ''
       );
+      CREATE TABLE IF NOT EXISTS api_usage (
+        id TEXT PRIMARY KEY, endpoint TEXT DEFAULT '', model TEXT DEFAULT '',
+        input_tokens INTEGER DEFAULT 0, output_tokens INTEGER DEFAULT 0, cache_read_tokens INTEGER DEFAULT 0,
+        cost_usd NUMERIC DEFAULT 0, duration_ms INTEGER DEFAULT 0,
+        success BOOLEAN DEFAULT true, error_message TEXT DEFAULT '', user_email TEXT DEFAULT '',
+        created_date TIMESTAMPTZ DEFAULT NOW()
+      );
       CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
       CREATE INDEX IF NOT EXISTS idx_movements_created ON stock_movements(created_date);
+      CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage(created_date);
     `);
     await exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT DEFAULT NULL`);
     await exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false`);
@@ -100,6 +108,14 @@ async function initDB() {
         entregado_por_email TEXT DEFAULT '', entregado_por_nombre TEXT DEFAULT '',
         created_date TEXT DEFAULT (datetime('now')), updated_date TEXT DEFAULT (datetime('now')), created_by TEXT DEFAULT ''
       );
+      CREATE TABLE IF NOT EXISTS api_usage (
+        id TEXT PRIMARY KEY, endpoint TEXT DEFAULT '', model TEXT DEFAULT '',
+        input_tokens INTEGER DEFAULT 0, output_tokens INTEGER DEFAULT 0, cache_read_tokens INTEGER DEFAULT 0,
+        cost_usd REAL DEFAULT 0, duration_ms INTEGER DEFAULT 0,
+        success INTEGER DEFAULT 1, error_message TEXT DEFAULT '', user_email TEXT DEFAULT '',
+        created_date TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage(created_date);
     `);
     try { await exec(`ALTER TABLE users ADD COLUMN totp_secret TEXT DEFAULT NULL`); } catch {}
     try { await exec(`ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0`); } catch {}
@@ -298,6 +314,31 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
   res.json({ file_url: `/uploads/${newName}` });
 });
 
+// --- API usage logging (tokens / costo de las llamadas a Anthropic) ---
+// Precios en USD por millón de tokens. Si cambia el modelo, agregar su entrada acá.
+const MODEL_PRICING = {
+  'claude-sonnet-4-20250514': { input: 3, output: 15, cacheRead: 0.30 },
+};
+
+async function recordApiUsage({ endpoint, model, usage, durationMs, success, errorMessage = '', userEmail = '' }) {
+  try {
+    const inputTokens = usage?.input_tokens || 0;
+    const outputTokens = usage?.output_tokens || 0;
+    const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+    const p = MODEL_PRICING[model] || { input: 0, output: 0, cacheRead: 0 };
+    const costUsd = (inputTokens * p.input + outputTokens * p.output + cacheReadTokens * p.cacheRead) / 1_000_000;
+    await query(
+      `INSERT INTO api_usage (id, endpoint, model, input_tokens, output_tokens, cache_read_tokens, cost_usd, duration_ms, success, error_message, user_email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [uuidv4(), endpoint, model, inputTokens, outputTokens, cacheReadTokens, costUsd, durationMs,
+       USE_PG ? success : (success ? 1 : 0), String(errorMessage || '').slice(0, 500), userEmail]
+    );
+  } catch (e) {
+    // El logging nunca debe romper la operación principal.
+    console.error('[api_usage] no se pudo registrar el uso:', e.message);
+  }
+}
+
 // --- Label Analysis with Claude Vision ---
 app.post('/api/analyze-label', authenticateToken, requireRoles('admin', 'carga'), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
@@ -305,6 +346,9 @@ app.post('/api/analyze-label', authenticateToken, requireRoles('admin', 'carga')
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada' });
 
+  const model = 'claude-sonnet-4-20250514';
+  const startedAt = Date.now();
+  let usage = null;
   try {
     const base64Image = req.file.buffer.toString('base64');
     const ext = path.extname(req.file.originalname).toLowerCase();
@@ -312,7 +356,7 @@ app.post('/api/analyze-label', authenticateToken, requireRoles('admin', 'carga')
 
     const client = new Anthropic({ apiKey });
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model,
       max_tokens: 1024,
       messages: [{
         role: 'user',
@@ -342,14 +386,17 @@ IMPORTANTE para el talle: en etiquetas deportivas suele haber varios sistemas (U
       }]
     });
 
+    usage = message.usage;
     const text = message.content[0].text.trim();
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
     const jsonStr = start !== -1 && end !== -1 ? text.slice(start, end + 1) : text;
     const parsed = JSON.parse(jsonStr);
+    await recordApiUsage({ endpoint: 'analyze-label', model, usage, durationMs: Date.now() - startedAt, success: true, userEmail: req.user?.email });
     res.json(parsed);
   } catch (err) {
     console.error('Label analysis error:', err);
+    await recordApiUsage({ endpoint: 'analyze-label', model, usage, durationMs: Date.now() - startedAt, success: false, errorMessage: err.message, userEmail: req.user?.email });
     res.status(500).json({ error: 'Error al analizar la etiqueta: ' + err.message });
   }
 });

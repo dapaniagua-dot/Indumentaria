@@ -8,6 +8,12 @@
   },
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:full": "npm run db:up && npm run dev",
+    "db:up": "bash scripts/db.sh up",
+    "db:down": "bash scripts/db.sh down",
+    "db:logs": "bash scripts/db.sh logs",
+    "db:psql": "bash scripts/db.sh psql",
+    "db:reset": "bash scripts/db.sh reset",
     "dev:client": "vite",
     "dev:server": "node --env-file=.env server/index.js",
     "seed": "node --env-file=.env server/seed.js",
