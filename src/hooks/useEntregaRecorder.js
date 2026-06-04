@@ -63,10 +63,12 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [hasAudio, setHasAudio] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
+  const [volumeDetected, setVolumeDetected] = useState(false);
 
   const audioCtxRef = useRef(null);
   const analyserRef = useRef(null);
   const vmRafRef = useRef(null);
+  const volumeDetectedRef = useRef(false);
 
   // --- Overlay drawing loop ---
   const drawOverlay = useCallback((ctx, w, h) => {
@@ -214,6 +216,8 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
     analyserRef.current = null;
     audioCtxRef.current = null;
     setVolumeLevel(0);
+    volumeDetectedRef.current = false;
+    setVolumeDetected(false);
   }, []);
 
   const setupVolumeMeter = useCallback((stream) => {
@@ -225,12 +229,19 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
       source.connect(an);
       analyserRef.current = an;
       const buf = new Uint8Array(an.frequencyBinCount);
+      volumeDetectedRef.current = false;
+      setVolumeDetected(false);
       const tick = () => {
         an.getByteTimeDomainData(buf);
         let sum = 0;
         for (const v of buf) { const n = (v - 128) / 128; sum += n * n; }
         const rms = Math.sqrt(sum / buf.length);
-        setVolumeLevel(Math.min(1, rms * 4));
+        const level = Math.min(1, rms * 4);
+        setVolumeLevel(level);
+        if (!volumeDetectedRef.current && level > 0.05) {
+          volumeDetectedRef.current = true;
+          setVolumeDetected(true);
+        }
         vmRafRef.current = requestAnimationFrame(tick);
       };
       tick();
@@ -393,7 +404,7 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
     videoRef, canvasRef,
     state, devices, deviceId, setDeviceId,
     audioDevices, audioDeviceId, setAudioDeviceId,
-    elapsed, errorMsg, enabled, hasAudio, volumeLevel,
+    elapsed, errorMsg, enabled, hasAudio, volumeLevel, volumeDetected,
     isRecording: state === "recording",
     startCamera, startRecording, stopRecording, cleanup,
     maxDurationSec: MAX_DURATION_SEC,

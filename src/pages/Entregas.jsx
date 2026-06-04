@@ -366,10 +366,11 @@ export default function Entregas() {
                   {recorder.volumeLevel > 0.05 ? "captando" : "silencio"}
                 </span>
               </div>
-              {recorder.volumeLevel <= 0.05 && (
+              {!recorder.volumeDetected && (
                 <p className="text-[11px] text-amber-600">
-                  El mic no está captando sonido. Hablá frente al mic — si la barra no se mueve,
-                  cambialo en el selector o revisá el volumen de entrada en Windows.
+                  Aún no se detectó sonido. Hablá frente al mic — si la barra nunca se mueve,
+                  cambialo en el selector o revisá el volumen en Windows. (Este aviso desaparece
+                  apenas el mic capte algo.)
                 </p>
               )}
             </div>
