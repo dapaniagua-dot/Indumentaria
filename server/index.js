@@ -182,12 +182,8 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'Credenciales inválidas' });
   }
 
-  const totpEnabled = USE_PG ? user.totp_enabled : !!user.totp_enabled;
-  if (totpEnabled) {
-    const tempToken = jwt.sign({ id: user.id, pending2FA: true }, JWT_SECRET, { expiresIn: '5m' });
-    return res.json({ requires2FA: true, tempToken });
-  }
-
+  // 2FA desactivada: login directo. Para reactivar, restaurar el bloque de
+  // verificación de totp_enabled (commits anteriores a 5fdd01a).
   const token = jwt.sign(
     { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
     JWT_SECRET, { expiresIn: '7d' }
