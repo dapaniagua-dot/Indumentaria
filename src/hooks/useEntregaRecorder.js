@@ -105,6 +105,50 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
     ctx.font = `600 ${mid}px "Courier New", monospace`;
     ctx.fillText(date, w - pad, h - barH + big + mid + Math.round(h * 0.04));
 
+    // Items escaneados — columna superior derecha (últimos 4, más reciente arriba)
+    const its = Array.isArray(data.items) ? data.items.slice(0, 4) : [];
+    if (its.length > 0) {
+      const ipad = Math.round(w * 0.012);
+      const itemH = Math.round(h * 0.05);
+      const fs = Math.round(h * 0.024);
+      const gap = Math.round(h * 0.008);
+      ctx.font = `600 ${fs}px Arial, sans-serif`;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const topY = ipad + (recordingRef.current ? Math.round(h * 0.075) : ipad);
+
+      const labels = its.map((it) => {
+        const sku = it.sku || "—";
+        const name = (it.name || "").slice(0, 24);
+        return `✓ ${sku}  ${name}`;
+      });
+      let maxW = 0;
+      for (const l of labels) {
+        const m = ctx.measureText(l).width;
+        if (m > maxW) maxW = m;
+      }
+      const boxW = maxW + ipad * 2;
+      const xCol = w - boxW - ipad;
+      labels.forEach((label, i) => {
+        const y = topY + i * (itemH + gap);
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillRect(xCol, y, boxW, itemH);
+        ctx.fillStyle = "#fff";
+        ctx.fillText(label, xCol + ipad, y + itemH / 2);
+      });
+      const extra = (data.totalItemsCount || 0) - its.length;
+      if (extra > 0) {
+        const y = topY + its.length * (itemH + gap);
+        const txt = `+ ${extra} más`;
+        const m = ctx.measureText(txt).width;
+        const w2 = m + ipad * 2;
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(w - w2 - ipad, y, w2, itemH);
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillText(txt, w - w2 - ipad + ipad, y + itemH / 2);
+      }
+    }
+
     // REC indicator (top-left) while recording
     if (recordingRef.current) {
       const blink = Math.floor(nowMs / 600) % 2 === 0;

@@ -8,8 +8,6 @@ import { Label } from "@/components/ui/label";
 import { generateEntregaPDF } from "@/lib/entregaPdf";
 import { useEntregaRecorder } from "@/hooks/useEntregaRecorder";
 
-const CLOSING_SECONDS = 30; // segundos extra que se graban tras confirmar la entrega
-
 export default function Entregas() {
   const { user } = useAuth();
   const [form, setForm] = useState({ nombre: "", apellido: "", dni: "", sector: "" });
@@ -27,10 +25,10 @@ export default function Entregas() {
   const [started, setStarted] = useState(false);     // operador tocó "Comenzar entrega"
   const [noVideo, setNoVideo] = useState(false);      // continuar sin grabación (cámara falló)
   const [starting, setStarting] = useState(false);
-  const [videoStage, setVideoStage] = useState("");   // ''|closing|stopping|uploading|done|error
+  const [videoStage, setVideoStage] = useState("");   // ''|signing|stopping|uploading|done|error
   const [uploadPct, setUploadPct] = useState(0);
-  const [closingCountdown, setClosingCountdown] = useState(CLOSING_SECONDS);
   const overlayRef = useRef({ nombre: "", apellido: "", dni: "", count: 0 });
+  const fechaHoraRef = useRef("");
   const recorder = useEntregaRecorder({ enabled: videoEnabled, overlayRef });
 
   const now = new Date();
@@ -43,7 +41,12 @@ export default function Entregas() {
 
   // keep overlay text fresh for the canvas render loop
   useEffect(() => {
-    overlayRef.current = { nombre: form.nombre, apellido: form.apellido, dni: form.dni, count: totalPrendas };
+    const flat = items.flatMap(i => Array(i.quantity).fill({ sku: i.sku, name: i.product_name }));
+    overlayRef.current = {
+      nombre: form.nombre, apellido: form.apellido, dni: form.dni, count: totalPrendas,
+      items: flat.slice().reverse(),  // más recientes arriba
+      totalItemsCount: flat.length,
+    };
   });
 
   useEffect(() => {
@@ -111,48 +114,53 @@ export default function Entregas() {
     setStarted(true);
   };
 
-  const runClosingCountdown = (secs) => new Promise((resolve) => {
-    setClosingCountdown(secs);
-    const iv = setInterval(() => {
-      setClosingCountdown((prev) => {
-        if (prev <= 1) { clearInterval(iv); resolve(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-  });
+  // Descuenta stock + crea la entrega. Compartido entre el flujo con/sin video.
+  const finalizeEntrega = async (video_url, fechaHoraStr) => {
+    for (const item of items) {
+      const fresh = await base44.entities.Product.filter({ sku: item.sku });
+      if (fresh.length) {
+        const p = fresh[0];
+        await base44.entities.Product.update(p.id, { stock: Math.max(0, (p.stock || 0) - item.quantity) });
+        await base44.entities.StockMovement.create({
+          product_id: p.id,
+          product_name: p.name,
+          product_sku: p.sku,
+          type: "salida",
+          quantity: item.quantity,
+          notes: `Entrega a ${form.nombre} ${form.apellido} — Sector: ${form.sector}`,
+          user_email: user?.email,
+          reference: "entrega"
+        });
+      }
+    }
+    await base44.entities.Entrega.create({
+      fecha_hora: fechaHoraStr,
+      receptor_nombre: form.nombre,
+      receptor_apellido: form.apellido,
+      receptor_dni: form.dni,
+      sector: form.sector,
+      prendas: items,
+      total_prendas: totalPrendas,
+      entregado_por_email: user?.email,
+      entregado_por_nombre: user?.full_name,
+      video_url
+    });
+    recorder.cleanup();
+    setSavedVideoUrl(video_url);
+    setSaving(false);
+    setVideoStage("");
+    setDone(true);
+  };
 
+  // Paso 1: confirmar -> descargar el PDF de la planilla ya para que el receptor
+  // la firme frente a la cámara. La grabación sigue activa hasta que el operador
+  // toque "Finalizar entrega".
   const handleConfirmEntrega = async () => {
     if (!window.confirm(`Se van a descontar ${totalPrendas} prenda(s) del stock general. ¿Confirmar entrega?`)) return;
     setSaving(true);
 
     try {
-      // 1) Cierre de 30s + finalizar + subir el video
-      let video_url = "";
-      const recording = videoEnabled && !noVideo && recorder.isRecording;
-      if (recording) {
-        setVideoStage("closing");
-        await runClosingCountdown(CLOSING_SECONDS);
-        setVideoStage("stopping");
-        const result = await recorder.stopRecording();
-        if (result?.blob && result.blob.size > 0) {
-          try {
-            setVideoStage("uploading");
-            setUploadPct(0);
-            const { uploadUrl, publicUrl, contentType } = await base44.videoEntregas.presign(result.mimeType);
-            await base44.videoEntregas.upload(uploadUrl, result.blob, contentType, (p) => setUploadPct(Math.round(p * 100)));
-            video_url = publicUrl;
-            setVideoStage("done");
-          } catch {
-            setVideoStage("error");
-            if (!window.confirm("No se pudo subir el video de la entrega. ¿Guardar la entrega SIN video?")) {
-              setSaving(false);
-              return;
-            }
-          }
-        }
-      }
-
-      // 2) Hora confiable del servidor (sello del registro)
+      // Hora confiable del servidor (sello del registro y de la planilla)
       let fechaHoraStr;
       try {
         const t = await base44.videoEntregas.serverTime();
@@ -160,28 +168,10 @@ export default function Entregas() {
       } catch {
         fechaHoraStr = new Date().toLocaleString("es-AR");
       }
+      fechaHoraRef.current = fechaHoraStr;
 
-      // 3) Descontar stock y registrar movimientos
-      for (const item of items) {
-        const fresh = await base44.entities.Product.filter({ sku: item.sku });
-        if (fresh.length) {
-          const p = fresh[0];
-          await base44.entities.Product.update(p.id, { stock: Math.max(0, (p.stock || 0) - item.quantity) });
-          await base44.entities.StockMovement.create({
-            product_id: p.id,
-            product_name: p.name,
-            product_sku: p.sku,
-            type: "salida",
-            quantity: item.quantity,
-            notes: `Entrega a ${form.nombre} ${form.apellido} — Sector: ${form.sector}`,
-            user_email: user?.email,
-            reference: "entrega"
-          });
-        }
-      }
-
-      // 4) Crear la entrega
-      const entregaData = {
+      // Descargar la planilla AHORA, para imprimir y firmar frente a la cámara
+      const previewData = {
         fecha_hora: fechaHoraStr,
         receptor_nombre: form.nombre,
         receptor_apellido: form.apellido,
@@ -191,22 +181,63 @@ export default function Entregas() {
         total_prendas: totalPrendas,
         entregado_por_email: user?.email,
         entregado_por_nombre: user?.full_name,
-        video_url
       };
-
-      await base44.entities.Entrega.create(entregaData);
-      const doc = generateEntregaPDF(entregaData);
+      const doc = generateEntregaPDF(previewData);
       doc.save(`entrega-${form.apellido}-${Date.now()}.pdf`);
 
-      recorder.cleanup();
-      setSavedVideoUrl(video_url);
-      setSaving(false);
-      setDone(true);
+      const recording = videoEnabled && !noVideo && recorder.isRecording;
+      if (recording) {
+        // Esperar el click de Finalizar — la grabación sigue activa
+        setVideoStage("signing");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        // Sin grabación: cerrar directamente
+        await finalizeEntrega("", fechaHoraStr);
+      }
     } catch (err) {
       setSaving(false);
       setVideoStage("");
       alert("Ocurrió un error al confirmar la entrega: " + (err?.message || ""));
     }
+  };
+
+  // Paso 2: el operador termina la firma -> parar grabación, subir video, guardar
+  const handleFinalize = async () => {
+    try {
+      setVideoStage("stopping");
+      const result = await recorder.stopRecording();
+      let video_url = "";
+      if (result?.blob && result.blob.size > 0) {
+        try {
+          setVideoStage("uploading");
+          setUploadPct(0);
+          const { uploadUrl, publicUrl, contentType } = await base44.videoEntregas.presign(result.mimeType);
+          await base44.videoEntregas.upload(uploadUrl, result.blob, contentType, (p) => setUploadPct(Math.round(p * 100)));
+          video_url = publicUrl;
+          setVideoStage("done");
+        } catch {
+          setVideoStage("error");
+          if (!window.confirm("No se pudo subir el video de la entrega. ¿Guardar la entrega SIN video?")) {
+            setVideoStage("signing");
+            return;
+          }
+        }
+      }
+      await finalizeEntrega(video_url, fechaHoraRef.current || new Date().toLocaleString("es-AR"));
+    } catch (err) {
+      setSaving(false);
+      setVideoStage("");
+      alert("Error al finalizar la entrega: " + (err?.message || ""));
+    }
+  };
+
+  // Cancelar la firma: descarta la entrega en curso (no se descuenta stock)
+  const handleCancelSigning = () => {
+    if (!window.confirm("¿Cancelar esta entrega? No se descuenta stock ni se guarda el video.")) return;
+    recorder.cleanup();
+    setSaving(false);
+    setVideoStage("");
+    fechaHoraRef.current = "";
   };
 
   const resetForm = () => {
@@ -219,7 +250,6 @@ export default function Entregas() {
     setSavedVideoUrl("");
     setVideoStage("");
     setUploadPct(0);
-    setClosingCountdown(CLOSING_SECONDS);
     setStarted(false);
     setNoVideo(false);
     if (videoEnabled) recorder.startCamera();
@@ -462,20 +492,36 @@ export default function Entregas() {
         </>
       )}
 
-      {/* Overlay de finalización (cierre 30s + subida) */}
-      {saving && (videoStage === "closing" || videoStage === "stopping" || videoStage === "uploading") && (
+      {/* Banner inferior: la planilla se descargó, esperando firma frente a la cámara */}
+      {saving && videoStage === "signing" && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t-2 border-primary shadow-2xl p-4">
+          <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                Grabando — Firma de la planilla
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                La planilla se descargó. Imprimila y hacela <strong>firmar por el receptor frente a la cámara</strong>.
+                Cuando termine, tocá <strong>Finalizar entrega</strong>.
+              </p>
+            </div>
+            <div className="flex gap-2 sm:flex-shrink-0">
+              <Button onClick={handleCancelSigning} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                Cancelar
+              </Button>
+              <Button onClick={handleFinalize} size="sm" className="gap-2 flex-1 sm:flex-none">
+                <Check className="w-4 h-4" /> Finalizar entrega
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay modal: finalizando video / subiendo a R2 */}
+      {saving && (videoStage === "stopping" || videoStage === "uploading") && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="bg-card rounded-2xl border border-border p-8 max-w-sm w-full text-center space-y-4">
-            {videoStage === "closing" && (
-              <>
-                <div className="w-16 h-16 mx-auto rounded-full bg-red-500/15 flex items-center justify-center">
-                  <span className="w-3.5 h-3.5 rounded-full bg-red-500 animate-pulse" />
-                </div>
-                <h3 className="font-bold text-lg text-foreground">Grabando cierre de la entrega</h3>
-                <p className="text-5xl font-bold text-primary tabular-nums">{closingCountdown}s</p>
-                <p className="text-sm text-muted-foreground">Mantené la cámara enfocada en la entrega y el receptor.</p>
-              </>
-            )}
             {videoStage === "stopping" && (
               <>
                 <Loader2 className="w-10 h-10 mx-auto animate-spin text-primary" />
