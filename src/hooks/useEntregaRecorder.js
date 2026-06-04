@@ -59,6 +59,7 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
   const [deviceId, setDeviceId] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [hasAudio, setHasAudio] = useState(false);
 
   // --- Overlay drawing loop ---
   const drawOverlay = useCallback((ctx, w, h) => {
@@ -216,17 +217,27 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
 
       stopTracks();
       const id = preferredId || deviceId;
-      const constraints = {
-        video: id ? { deviceId: { exact: id } } : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
-      };
+      const videoConstr = id ? { deviceId: { exact: id } } : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } };
+
+      // Estrategia: pedimos video y audio juntos. Si falla por audio (típico:
+      // permiso de mic denegado o el dispositivo está ocupado), reintentamos
+      // pidiendo SOLO video y dejamos marcado que no hay audio (en vez de caer
+      // silenciosamente como antes).
       let stream;
+      let gotAudio = false;
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch {
-        // fallback: any camera, no audio
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstr, audio: true });
+        gotAudio = stream.getAudioTracks().length > 0;
+      } catch (errAudio) {
+        console.warn('getUserMedia con audio falló:', errAudio?.name, errAudio?.message);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: videoConstr, audio: false });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        gotAudio = false;
       }
+      setHasAudio(gotAudio);
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -333,7 +344,7 @@ export function useEntregaRecorder({ enabled, overlayRef }) {
   return {
     videoRef, canvasRef,
     state, devices, deviceId, setDeviceId,
-    elapsed, errorMsg, enabled,
+    elapsed, errorMsg, enabled, hasAudio,
     isRecording: state === "recording",
     startCamera, startRecording, stopRecording, cleanup,
     maxDurationSec: MAX_DURATION_SEC,

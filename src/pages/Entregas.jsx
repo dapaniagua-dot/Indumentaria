@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Scan, Check, Trash2, Package, Video, VideoOff, Camera, Loader2, AlertTriangle } from "lucide-react";
+import { Scan, Check, Trash2, Package, Video, VideoOff, Camera, Loader2, AlertTriangle, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -308,6 +308,19 @@ export default function Entregas() {
               {recStatusLabel}{recorder.state === "recording" ? ` · ${Math.floor(recorder.elapsed/60)}:${String(recorder.elapsed%60).padStart(2,'0')}` : ""}
             </span>
           </div>
+
+          {/* Advertencia visible si NO se está capturando audio */}
+          {(recorder.state === "ready" || recorder.state === "recording") && !recorder.hasAudio && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 flex items-start gap-2">
+              <MicOff className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Sin audio en la grabación.</strong> El micrófono no se pudo activar
+                (permiso bloqueado o el mic está en uso por otra app). Revisá el 🔒 candado
+                de la URL → Configuración del sitio → Micrófono → <strong>Permitir</strong>,
+                y reintentá la cámara. El video se va a grabar igual, pero mudo.
+              </div>
+            </div>
+          )}
 
           {/* Hidden source video + visible canvas with burned-in overlay */}
           <video ref={recorder.videoRef} className="hidden" playsInline muted />
