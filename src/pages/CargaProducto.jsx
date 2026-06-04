@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
-import { Upload, Camera, Tag, Check, X, Loader2, AlertTriangle, RotateCcw, Image as ImageIcon } from "lucide-react";
+import { Upload, Camera, Tag, Check, X, Loader2, AlertTriangle, RotateCcw, Image as ImageIcon, Sparkles, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ const INITIAL = { name: "", brand: "", model_code: "", category: "", size: "", c
 export default function CargaProducto() {
   const { token } = useAuth();
   const [step, setStep] = useState("upload"); // upload | preview | done
+  const [mode, setMode] = useState("ai");     // ai (analiza etiqueta) | manual (carga a mano)
   const [labelFile, setLabelFile] = useState(null);
   const [labelPreview, setLabelPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -37,13 +39,14 @@ export default function CargaProducto() {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const handleAnalyze = async () => {
-    if (!labelFile || !photoFile || !sku) return;
+  const handleContinue = async () => {
+    if (!photoFile || !sku) return;
+    if (mode === "ai" && !labelFile) return;
     setAnalyzing(true);
     setError("");
 
     try {
-      // Check if SKU already exists
+      // Chequeo de SKU duplicado (en los dos modos)
       const existing = await base44.entities.Product.list("-created_date", 500);
       const duplicate = existing.find(p => p.sku === sku.trim());
       if (duplicate) {
@@ -52,6 +55,15 @@ export default function CargaProducto() {
         return;
       }
 
+      if (mode === "manual") {
+        // Carga manual: sin IA, pasa al preview con los campos vacíos
+        setExtractedData(INITIAL);
+        setStep("preview");
+        setAnalyzing(false);
+        return;
+      }
+
+      // Modo IA: analizar la etiqueta con Claude
       const formData = new FormData();
       formData.append("file", labelFile);
       const res = await fetch("/api/analyze-label", {
@@ -133,16 +145,47 @@ export default function CargaProducto() {
 
   // --- STEP: Upload ---
   if (step === "upload") {
-    const ready = labelFile && photoFile && sku.trim();
+    const ready = mode === "ai"
+      ? (labelFile && photoFile && sku.trim())
+      : (photoFile && sku.trim());
     return (
       <div className="p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">
         <div>
           <h1 className="text-2xl font-bold text-white">Cargar Producto</h1>
-          <p className="text-muted-foreground text-sm mt-1">Subi la etiqueta y la foto del producto para crear la ficha automaticamente</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {mode === "ai"
+              ? "Subi la etiqueta y la foto del producto para crear la ficha automaticamente"
+              : "Completá los datos del producto a mano"}
+          </p>
+        </div>
+
+        {/* Toggle de modo: IA vs manual */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-card border border-border rounded-xl">
+          <button
+            type="button"
+            onClick={() => setMode("ai")}
+            className={cn(
+              "flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+              mode === "ai" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Sparkles className="w-4 h-4" /> Analizar etiqueta (IA)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("manual")}
+            className={cn(
+              "flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+              mode === "manual" ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Pencil className="w-4 h-4" /> Cargar a mano
+          </button>
         </div>
 
         <div className="space-y-5">
-          {/* Label upload */}
+          {/* Label upload (solo en modo IA) */}
+          {mode === "ai" && (
           <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
             <Label className="flex items-center gap-2 text-white font-semibold">
               <Tag className="w-4 h-4 text-primary" /> Etiqueta del producto
@@ -168,6 +211,7 @@ export default function CargaProducto() {
               </div>
             )}
           </div>
+          )}
 
           {/* Photo upload */}
           <div className="bg-card rounded-2xl border border-border p-5 space-y-3">
@@ -216,11 +260,13 @@ export default function CargaProducto() {
             </div>
           )}
 
-          <Button onClick={handleAnalyze} disabled={!ready || analyzing} className="w-full gap-2 py-6 text-base">
+          <Button onClick={handleContinue} disabled={!ready || analyzing} className="w-full gap-2 py-6 text-base">
             {analyzing ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Analizando etiqueta...</>
+              <><Loader2 className="w-5 h-5 animate-spin" /> {mode === "ai" ? "Analizando etiqueta…" : "Verificando…"}</>
+            ) : mode === "ai" ? (
+              <><Sparkles className="w-5 h-5" /> Analizar y continuar</>
             ) : (
-              <><Upload className="w-5 h-5" /> Analizar y continuar</>
+              <><Upload className="w-5 h-5" /> Continuar</>
             )}
           </Button>
         </div>
@@ -234,7 +280,11 @@ export default function CargaProducto() {
       <div className="p-6 lg:p-8 space-y-6 max-w-2xl mx-auto">
         <div>
           <h1 className="text-2xl font-bold text-white">Vista Previa</h1>
-          <p className="text-muted-foreground text-sm mt-1">Revisa los datos extraidos de la etiqueta. Podes editar cualquier campo antes de confirmar.</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {mode === "ai"
+              ? "Revisa los datos extraidos de la etiqueta. Podes editar cualquier campo antes de confirmar."
+              : "Completá los campos del producto y confirmá."}
+          </p>
         </div>
 
         {/* Product card preview */}
@@ -306,7 +356,7 @@ export default function CargaProducto() {
           <Button variant="outline" onClick={() => setStep("upload")} className="flex-1 gap-2">
             <X className="w-4 h-4" /> Volver
           </Button>
-          <Button onClick={handleConfirm} disabled={saving} className="flex-1 gap-2">
+          <Button onClick={handleConfirm} disabled={saving || !extractedData.name.trim()} className="flex-1 gap-2">
             {saving ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
             ) : (
