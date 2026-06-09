@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Plus, Search, Edit, Trash2, Package, AlertTriangle } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package, AlertTriangle, FileDown } from "lucide-react";
 import ProductDetail from "../components/ProductDetail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,44 @@ export default function Products() {
     load();
   };
 
+  // Exporta el listado completo de productos a un .csv compatible con Excel
+  // (BOM UTF-8 + separador ";" para que Excel ES/AR lo abra en columnas).
+  const exportToExcel = () => {
+    const cols = [
+      { header: "Nombre", get: (p) => p.name },
+      { header: "SKU", get: (p) => p.sku },
+      { header: "Codigo Modelo", get: (p) => p.model_code },
+      { header: "Marca", get: (p) => p.brand },
+      { header: "Categoria", get: (p) => p.category },
+      { header: "Talle", get: (p) => p.size },
+      { header: "Color", get: (p) => p.color },
+      { header: "Stock", get: (p) => p.stock ?? 0 },
+      { header: "Stock con publicidad", get: (p) => p.tiene_variante_publicidad ? (p.stock_con_pub ?? 0) : "" },
+      { header: "Stock sin publicidad", get: (p) => p.tiene_variante_publicidad ? (p.stock_sin_pub ?? 0) : "" },
+      { header: "Stock minimo", get: (p) => p.min_stock ?? 0 },
+      { header: "Estado", get: (p) => (p.active ? "Activo" : "Inactivo") },
+    ];
+    const esc = (v) => {
+      if (v === null || v === undefined) return "";
+      const s = String(v);
+      return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headerRow = cols.map((c) => esc(c.header)).join(";");
+    const rows = products.map((p) => cols.map((c) => esc(c.get(p))).join(";"));
+    const BOM = "﻿";
+    const csv = BOM + [headerRow, ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const today = new Date().toISOString().slice(0, 10);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `stock-${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
@@ -73,9 +111,20 @@ export default function Products() {
           <p className="text-white/70 text-sm font-industry mt-1">{products.length} productos registrados</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => { setEditProduct(null); setShowForm(true); }} className="gap-2 font-industry font-semibold text-xs uppercase tracking-wider">
-            <Plus className="w-4 h-4" /> Nuevo Producto
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={exportToExcel}
+              variant="outline"
+              disabled={products.length === 0}
+              title="Descarga un .csv del listado de stock (Excel lo abre directo)"
+              className="gap-2 font-industry font-semibold text-xs uppercase tracking-wider"
+            >
+              <FileDown className="w-4 h-4" /> Exportar Excel
+            </Button>
+            <Button onClick={() => { setEditProduct(null); setShowForm(true); }} className="gap-2 font-industry font-semibold text-xs uppercase tracking-wider">
+              <Plus className="w-4 h-4" /> Nuevo Producto
+            </Button>
+          </div>
         )}
       </div>
 
